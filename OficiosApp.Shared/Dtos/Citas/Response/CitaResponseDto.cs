@@ -3,14 +3,12 @@
 public class CitaResponseDto
 {
     public int IdCita { get; set; }
-    public string ClienteNombre { get; set; } = string.Empty;
-    public string ProfesionalNombre { get; set; } = string.Empty;
-    public string Estado { get; set; } = string.Empty;
+    public int IdUsuarioCliente { get; set; }
+    public int IdUsuarioProfesional { get; set; }
+    public int IdEstadoCita { get; set; }
     public DateTime FechaSolicitud { get; set; }
     public DateTime FechaServicioPactada { get; set; }
     public string DescripcionProblema { get; set; } = string.Empty;
     public string DireccionServicio { get; set; } = string.Empty;
-
-    // Solo se expone si el estado es 'Aceptada'
-    public string? TelefonoContacto { get; set; }
+    public DateTime? FechaRespuesta { get; set; }
 }

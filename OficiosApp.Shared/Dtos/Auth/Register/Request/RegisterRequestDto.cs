@@ -1,28 +1,30 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace OficiosApp.Shared.Dtos.Auth.Register.Request;
+namespace OficiosApp.Shared.Dtos.Auth;
 
-public class RegisterRequestDto
+public class RegistroRequestDto
 {
-    [Required]
+    [Required(ErrorMessage = "El nombre es obligatorio")]
     [MaxLength(100)]
     public string Nombre { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "El apellido es obligatorio")]
     [MaxLength(100)]
     public string Apellido { get; set; } = string.Empty;
 
-    [Required]
-    [EmailAddress]
+    [Required(ErrorMessage = "El email es obligatorio")]
+    [EmailAddress(ErrorMessage = "Formato de email inválido")]
+    [MaxLength(150)]
     public string Email { get; set; } = string.Empty;
 
-    [Required]
-    [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres.")]
+    [Required(ErrorMessage = "La contraseña es obligatoria")]
+    [MinLength(6, ErrorMessage = "La contraseña debe tener al menos 6 caracteres")]
     public string Password { get; set; } = string.Empty;
 
-    [Required]
+    [Required(ErrorMessage = "El teléfono es obligatorio")]
+    [MaxLength(25)]
     public string Telefono { get; set; } = string.Empty;
 
     [Required]
-    public int IdRol { get; set; } // 1: Cliente, 2: Profesional
+    public int IdRol { get; set; }
 }

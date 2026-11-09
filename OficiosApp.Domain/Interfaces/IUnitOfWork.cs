@@ -14,6 +14,13 @@ public interface IUnitOfWork : IDisposable
     IGenericRepository<Resena> Resenas { get; }
     IGenericRepository<Notificacion> Notificaciones { get; }
     IGenericRepository<ReporteUsuario> ReportesUsuarios { get; }
+    IGenericRepository<Favorito> Favoritos { get; }
+    IGenericRepository<HorarioAtencion> HorariosAtencion { get; }
+    IGenericRepository<FotoPortfolio> FotosPortfolio { get; }
+    IGenericRepository<HistorialEstadoCita> HistorialEstadosCita { get; }
+    IGenericRepository<Rol> Roles { get; }
+    IGenericRepository<EstadoCita> EstadoCita { get; }
+
 
     // Cambiamos CompleteAsync por GuardarCambiosAsync
     Task<int> GuardarCambiosAsync();

@@ -1,116 +1,119 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
+﻿using Microsoft.Extensions.Logging;
 using OficiosApp.Application.Interfaces;
 using OficiosApp.Domain.Entities;
 using OficiosApp.Domain.Interfaces;
-using OficiosApp.Shared.Dtos.Auth.Login.Request;
-using OficiosApp.Shared.Dtos.Auth.Login.Response;
-using OficiosApp.Shared.Dtos.Auth.Register.Request;
-using OficiosApp.Shared.Dtos.Usuarios;
+using OficiosApp.Shared.Dtos;
 using OficiosApp.Shared.Dtos.Auth;
-using OficiosApp.Shared.Wrappers;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using OficiosApp.Shared.Dtos.Base;
 
 namespace OficiosApp.Application.Services;
 
 public class AuthService : IAuthService
 {
     private readonly IUnitOfWork _unitOfWork;
-    private readonly IConfiguration _configuration;
+    private readonly ITokenService _tokenService;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
+    public AuthService(
+        IUnitOfWork unitOfWork,
+        ITokenService tokenService,
+        ILogger<AuthService> logger)
     {
         _unitOfWork = unitOfWork;
-        _configuration = configuration;
+        _tokenService = tokenService;
+        _logger = logger;
     }
 
-    public async Task<ApiResponse<LoginResponseDto>> LoginAsync(LoginRequestDto request)
+    public async Task<BaseResponse<AuthResponseDto>> RegistrarAsync(RegistroRequestDto dto)
     {
-        // Actualizado a BuscarAsync
-        var usuarios = await _unitOfWork.Usuarios.BuscarAsync(u => u.Email == request.Email);
-        var usuario = usuarios.FirstOrDefault();
+        var usuarios = await _unitOfWork.Usuarios.ObtenerTodosAsync();
+        var existeEmail = usuarios.Any(u => u.Email.ToLower() == dto.Email.Trim().ToLower());
 
-        if (usuario == null || !usuario.Activo)
-            return new ApiResponse<LoginResponseDto>("Credenciales inválidas o cuenta inactiva.");
-
-        if (!BCrypt.Net.BCrypt.Verify(request.Password, usuario.PasswordHash))
-            return new ApiResponse<LoginResponseDto>("Credenciales inválidas.");
-
-        // Actualizado a ObtenerPorIdAsync
-        var rol = await _unitOfWork.Categorias.ObtenerPorIdAsync(usuario.IdRol);
-        var nombreRol = usuario.IdRol == 1 ? "Cliente" : "Profesional";
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:Secret"] ?? "SuperClaveSecretaDeDesarrollo12345!");
-
-        var tokenDescriptor = new SecurityTokenDescriptor
+        if (existeEmail)
         {
-            Subject = new ClaimsIdentity(new[]
+            _logger.LogWarning("Intento de registro con email ya existente: {Email}", dto.Email);
+            return new BaseResponse<AuthResponseDto>
             {
-                new Claim(ClaimTypes.NameIdentifier, usuario.IdUsuario.ToString()),
-                new Claim(ClaimTypes.Email, usuario.Email),
-                new Claim(ClaimTypes.Role, nombreRol)
-            }),
-            Expires = DateTime.UtcNow.AddDays(7),
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                Success = false,
+                ErrorMessage = "El correo electrónico ya se encuentra registrado."
+            };
+        }
+
+        var nuevoUsuario = new Usuario
+        {
+            Nombre = dto.Nombre.Trim(),
+            Apellido = dto.Apellido.Trim(),
+            Email = dto.Email.Trim().ToLower(),
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Telefono = dto.Telefono.Trim(),
+            IdRol = dto.IdRol,
+            Activo = true,
+            FechaRegistro = DateTime.UtcNow
         };
 
-        var token = tokenHandler.CreateToken(tokenDescriptor);
+        await _unitOfWork.Usuarios.AgregarAsync(nuevoUsuario);
+        await _unitOfWork.GuardarCambiosAsync();
 
-        var response = new LoginResponseDto
+        _logger.LogInformation("Usuario registrado exitosamente con ID {IdUsuario} y rol {IdRol}", nuevoUsuario.IdUsuario, nuevoUsuario.IdRol);
+
+        var token = _tokenService.GenerarToken(nuevoUsuario);
+
+        return new BaseResponse<AuthResponseDto>
         {
-            Token = tokenHandler.WriteToken(token),
-            Usuario = new UsuarioDto
+            Success = true,
+            Data = new AuthResponseDto
+            {
+                IdUsuario = nuevoUsuario.IdUsuario,
+                Nombre = nuevoUsuario.Nombre,
+                Apellido = nuevoUsuario.Apellido,
+                Email = nuevoUsuario.Email,
+                IdRol = nuevoUsuario.IdRol,
+                Token = token
+            }
+        };
+    }
+
+    public async Task<BaseResponse<AuthResponseDto>> LoginAsync(LoginRequestDto dto)
+    {
+        var usuarios = await _unitOfWork.Usuarios.ObtenerTodosAsync();
+        var usuario = usuarios.FirstOrDefault(u => u.Email.ToLower() == dto.Email.Trim().ToLower());
+
+        if (usuario == null || !BCrypt.Net.BCrypt.Verify(dto.Password, usuario.PasswordHash))
+        {
+            _logger.LogWarning("Intento de inicio de sesión fallido para el email: {Email}", dto.Email);
+            return new BaseResponse<AuthResponseDto>
+            {
+                Success = false,
+                ErrorMessage = "Credenciales incorrectas."
+            };
+        }
+
+        if (!usuario.Activo)
+        {
+            _logger.LogWarning("Intento de inicio de sesión en cuenta inactiva. Usuario ID: {IdUsuario}", usuario.IdUsuario);
+            return new BaseResponse<AuthResponseDto>
+            {
+                Success = false,
+                ErrorMessage = "La cuenta se encuentra inactiva."
+            };
+        }
+
+        var token = _tokenService.GenerarToken(usuario);
+
+        _logger.LogInformation("Inicio de sesión exitoso. Usuario ID: {IdUsuario}", usuario.IdUsuario);
+
+        return new BaseResponse<AuthResponseDto>
+        {
+            Success = true,
+            Data = new AuthResponseDto
             {
                 IdUsuario = usuario.IdUsuario,
                 Nombre = usuario.Nombre,
                 Apellido = usuario.Apellido,
                 Email = usuario.Email,
-                Telefono = usuario.Telefono,
-                Rol = nombreRol
+                IdRol = usuario.IdRol,
+                Token = token
             }
         };
-
-        return new ApiResponse<LoginResponseDto>(response, "Login exitoso.");
-    }
-
-    public async Task<ApiResponse<string>> RegisterAsync(RegisterRequestDto request)
-    {
-        // Actualizado a BuscarAsync
-        var existe = await _unitOfWork.Usuarios.BuscarAsync(u => u.Email == request.Email);
-        if (existe.Any())
-            return new ApiResponse<string>("El correo electrónico ya está registrado.");
-
-        var nuevoUsuario = new Usuario
-        {
-            Nombre = request.Nombre,
-            Apellido = request.Apellido,
-            Email = request.Email,
-            Telefono = request.Telefono,
-            IdRol = request.IdRol,
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Activo = true,
-            FechaRegistro = DateTime.UtcNow
-        };
-
-        // Actualizado a AgregarAsync y GuardarCambiosAsync
-        await _unitOfWork.Usuarios.AgregarAsync(nuevoUsuario);
-        await _unitOfWork.GuardarCambiosAsync();
-
-        if (request.IdRol == 1)
-        {
-            await _unitOfWork.Clientes.AgregarAsync(new Cliente { IdUsuario = nuevoUsuario.IdUsuario });
-        }
-        else if (request.IdRol == 2)
-        {
-            await _unitOfWork.Profesionales.AgregarAsync(new Profesional { IdUsuario = nuevoUsuario.IdUsuario });
-        }
-
-        // Actualizado a GuardarCambiosAsync
-        await _unitOfWork.GuardarCambiosAsync();
-
-        return new ApiResponse<string>("Usuario registrado correctamente.", "Registro exitoso.");
     }
 }

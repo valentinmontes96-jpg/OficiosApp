@@ -1,13 +1,11 @@
-﻿using OficiosApp.Shared.Dtos.Auth.Login.Request;
-using OficiosApp.Shared.Dtos.Auth.Login.Response;
-using OficiosApp.Shared.Dtos.Auth.Register.Request;
+﻿using OficiosApp.Shared.Dtos;
 using OficiosApp.Shared.Dtos.Auth;
-using OficiosApp.Shared.Wrappers;
+using OficiosApp.Shared.Dtos.Base;
 
 namespace OficiosApp.Application.Interfaces;
 
 public interface IAuthService
 {
-    Task<ApiResponse<LoginResponseDto>> LoginAsync(LoginRequestDto request);
-    Task<ApiResponse<string>> RegisterAsync(RegisterRequestDto request);
+    Task<BaseResponse<AuthResponseDto>> RegistrarAsync(RegistroRequestDto dto);
+    Task<BaseResponse<AuthResponseDto>> LoginAsync(LoginRequestDto dto);
 }

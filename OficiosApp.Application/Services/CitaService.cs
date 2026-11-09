@@ -1,100 +1,189 @@
-﻿using OficiosApp.Application.Interfaces;
+﻿using Microsoft.Extensions.Logging;
+using OficiosApp.Application.Interfaces;
 using OficiosApp.Domain.Entities;
 using OficiosApp.Domain.Interfaces;
-using OficiosApp.Shared.Dtos.Citas.Request;
-using OficiosApp.Shared.Dtos.Citas.Response;
+using OficiosApp.Shared.Dtos.Base;
 using OficiosApp.Shared.Dtos.Citas;
-using OficiosApp.Shared.Wrappers;
+using OficiosApp.Shared.Dtos.Citas.Response;
 
 namespace OficiosApp.Application.Services;
 
 public class CitaService : ICitaService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<CitaService> _logger;
 
-    public CitaService(IUnitOfWork unitOfWork)
+    public CitaService(IUnitOfWork unitOfWork, ILogger<CitaService> logger)
     {
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
-    public async Task<ApiResponse<CitaResponseDto>> SolicitarCitaAsync(CitaRequestDto request, int idUsuarioCliente)
+    public async Task<BaseResponse<IEnumerable<CitaResponseDto>>> ObtenerTodasAsync()
     {
-        // Actualizado a ObtenerPorIdAsync
-        var profesional = await _unitOfWork.Profesionales.ObtenerPorIdAsync(request.IdUsuarioProfesional);
-        if (profesional == null)
-            return new ApiResponse<CitaResponseDto>("El profesional seleccionado no existe o no está disponible.");
+        var citas = await _unitOfWork.Citas.ObtenerTodosAsync();
+        return new BaseResponse<IEnumerable<CitaResponseDto>>
+        {
+            Success = true,
+            Data = citas.Select(MapearADto).ToList()
+        };
+    }
 
-        // Actualizado a EstadosCita.BuscarAsync
-        var estados = await _unitOfWork.EstadosCita.BuscarAsync(e => e.Nombre == "Pendiente");
-        var estadoPendiente = estados.FirstOrDefault();
+    public async Task<BaseResponse<CitaResponseDto>> ObtenerPorIdAsync(int idCita)
+    {
+        var cita = await _unitOfWork.Citas.ObtenerPorIdAsync(idCita);
+        if (cita == null)
+            return new BaseResponse<CitaResponseDto> { Success = false, ErrorMessage = "Cita no encontrada." };
 
-        if (estadoPendiente == null)
-            return new ApiResponse<CitaResponseDto>("Error interno de configuración de estados.");
+        return new BaseResponse<CitaResponseDto> { Success = true, Data = MapearADto(cita) };
+    }
 
+    public async Task<BaseResponse<IEnumerable<CitaResponseDto>>> ObtenerPorClienteAsync(int idUsuarioCliente)
+    {
+        var citas = await _unitOfWork.Citas.ObtenerTodosAsync();
+        var lista = citas.Where(c => c.IdUsuarioCliente == idUsuarioCliente).Select(MapearADto).ToList();
+
+        return new BaseResponse<IEnumerable<CitaResponseDto>> { Success = true, Data = lista };
+    }
+
+    public async Task<BaseResponse<IEnumerable<CitaResponseDto>>> ObtenerPorProfesionalAsync(int idUsuarioProfesional)
+    {
+        var citas = await _unitOfWork.Citas.ObtenerTodosAsync();
+        var lista = citas.Where(c => c.IdUsuarioProfesional == idUsuarioProfesional).Select(MapearADto).ToList();
+
+        return new BaseResponse<IEnumerable<CitaResponseDto>> { Success = true, Data = lista };
+    }
+
+    public async Task<BaseResponse<CitaResponseDto>> CrearAsync(int idUsuarioCliente, CrearCitaDto dto, int idEstadoInicial = 1)
+    {
         var nuevaCita = new Cita
         {
             IdUsuarioCliente = idUsuarioCliente,
-            IdUsuarioProfesional = request.IdUsuarioProfesional,
-            IdEstadoCita = estadoPendiente.IdEstadoCita,
+            IdUsuarioProfesional = dto.IdUsuarioProfesional,
+            IdEstadoCita = idEstadoInicial,
             FechaSolicitud = DateTime.UtcNow,
-            FechaServicioPactada = request.FechaServicioPactada,
-            DescripcionProblema = request.DescripcionProblema,
-            DireccionServicio = request.DireccionServicio
+            FechaServicioPactada = dto.FechaServicioPactada,
+            DescripcionProblema = dto.DescripcionProblema,
+            DireccionServicio = dto.DireccionServicio
         };
 
-        // Actualizado a AgregarAsync
         await _unitOfWork.Citas.AgregarAsync(nuevaCita);
-
-        var historial = new HistorialEstadoCita
-        {
-            Cita = nuevaCita,
-            IdEstadoCita = estadoPendiente.IdEstadoCita,
-            IdUsuarioAccion = idUsuarioCliente,
-            Observaciones = "Cita solicitada por el cliente."
-        };
-
-        // Actualizado a GuardarCambiosAsync
         await _unitOfWork.GuardarCambiosAsync();
 
-        var response = new CitaResponseDto
+        var historialInicial = new HistorialEstadoCita
         {
             IdCita = nuevaCita.IdCita,
-            Estado = "Pendiente",
-            FechaSolicitud = nuevaCita.FechaSolicitud,
-            FechaServicioPactada = nuevaCita.FechaServicioPactada,
-            DescripcionProblema = nuevaCita.DescripcionProblema,
-            DireccionServicio = nuevaCita.DireccionServicio,
-            TelefonoContacto = null
+            IdEstadoCita = idEstadoInicial,
+            IdUsuarioAccion = idUsuarioCliente,
+            FechaCambio = DateTime.UtcNow,
+            Observaciones = "Solicitud creada por el cliente."
         };
 
-        return new ApiResponse<CitaResponseDto>(response, "Cita solicitada correctamente. Esperando confirmación del profesional.");
+        await _unitOfWork.HistorialEstadosCita.AgregarAsync(historialInicial);
+        await _unitOfWork.GuardarCambiosAsync();
+
+        _logger.LogInformation("Cita {IdCita} creada. Historial inicial registrado con usuario {IdUsuario}", nuevaCita.IdCita, idUsuarioCliente);
+
+        return new BaseResponse<CitaResponseDto> { Success = true, Data = MapearADto(nuevaCita) };
     }
 
-    public async Task<ApiResponse<bool>> AceptarCitaAsync(int idCita, int idUsuarioProfesional)
+    public async Task<BaseResponse<CitaResponseDto>> ActualizarAsync(int idCita, ActualizarCitaDto dto)
     {
-        // Actualizado a ObtenerPorIdAsync
         var cita = await _unitOfWork.Citas.ObtenerPorIdAsync(idCita);
-
         if (cita == null)
-            return new ApiResponse<bool>("La cita no existe.");
+        {
+            _logger.LogWarning("Intento de actualización sobre cita inexistente. ID: {IdCita}", idCita);
+            return new BaseResponse<CitaResponseDto> { Success = false, ErrorMessage = "Cita no encontrada." };
+        }
 
-        if (cita.IdUsuarioProfesional != idUsuarioProfesional)
-            return new ApiResponse<bool>("No tienes permiso para modificar esta cita.");
+        cita.FechaServicioPactada = dto.FechaServicioPactada;
+        cita.DescripcionProblema = dto.DescripcionProblema;
+        cita.DireccionServicio = dto.DireccionServicio;
 
-        // Actualizado a EstadosCita.BuscarAsync
-        var estados = await _unitOfWork.EstadosCita.BuscarAsync(e => e.Nombre == "Aceptada");
-        var estadoAceptada = estados.FirstOrDefault();
+        if (dto.FechaRespuesta.HasValue)
+            cita.FechaRespuesta = dto.FechaRespuesta.Value;
 
-        if (cita.IdEstadoCita == estadoAceptada?.IdEstadoCita)
-            return new ApiResponse<bool>("La cita ya se encontraba aceptada.");
-
-        cita.IdEstadoCita = estadoAceptada!.IdEstadoCita;
-        cita.FechaRespuesta = DateTime.UtcNow;
-
-        // Actualizado a Actualizar y GuardarCambiosAsync
         _unitOfWork.Citas.Actualizar(cita);
         await _unitOfWork.GuardarCambiosAsync();
 
-        return new ApiResponse<bool>(true, "Cita aceptada. El cliente ahora puede ver tu número de contacto.");
+        _logger.LogInformation("Cita con ID {IdCita} actualizada correctamente", idCita);
+
+        return new BaseResponse<CitaResponseDto> { Success = true, Data = MapearADto(cita) };
     }
+
+    public async Task<BaseResponse<bool>> CambiarEstadoAsync(int idCita, int idUsuarioAccion, int nuevoIdEstado, string? observaciones = null)
+    {
+        var cita = await _unitOfWork.Citas.ObtenerPorIdAsync(idCita);
+        if (cita == null)
+        {
+            _logger.LogWarning("Intento de cambio de estado sobre cita inexistente. ID: {IdCita}", idCita);
+            return new BaseResponse<bool> { Success = false, ErrorMessage = "Cita no encontrada." };
+        }
+
+        if (cita.IdEstadoCita == nuevoIdEstado)
+            return new BaseResponse<bool> { Success = false, ErrorMessage = "La cita ya se encuentra en ese estado." };
+
+        var estadoAnterior = cita.IdEstadoCita;
+        cita.IdEstadoCita = nuevoIdEstado;
+        cita.FechaRespuesta = DateTime.UtcNow;
+
+        _unitOfWork.Citas.Actualizar(cita);
+
+        var entradaHistorial = new HistorialEstadoCita
+        {
+            IdCita = idCita,
+            IdEstadoCita = nuevoIdEstado,
+            IdUsuarioAccion = idUsuarioAccion,
+            FechaCambio = DateTime.UtcNow,
+            Observaciones = observaciones?.Trim()
+        };
+
+        await _unitOfWork.HistorialEstadosCita.AgregarAsync(entradaHistorial);
+        await _unitOfWork.GuardarCambiosAsync();
+
+        _logger.LogInformation("Cita {IdCita}: Estado cambiado de {EstadoAnterior} a {NuevoEstado} por usuario {IdUsuario}",
+            idCita, estadoAnterior, nuevoIdEstado, idUsuarioAccion);
+
+        return new BaseResponse<bool> { Success = true, Data = true };
+    }
+
+    public async Task<BaseResponse<IEnumerable<HistorialEstadoCitaResponseDto>>> ObtenerHistorialAsync(int idCita)
+    {
+        var historiales = await _unitOfWork.HistorialEstadosCita.ObtenerTodosAsync();
+
+        var lista = historiales
+            .Where(h => h.IdCita == idCita)
+            .OrderByDescending(h => h.FechaCambio)
+            .Select(h => new HistorialEstadoCitaResponseDto
+            {
+                IdHistorial = h.IdHistorial,
+                IdCita = h.IdCita,
+                IdEstadoCita = h.IdEstadoCita,
+                NombreEstado = h.Estado?.Nombre ?? $"Estado #{h.IdEstadoCita}",
+                IdUsuarioAccion = h.IdUsuarioAccion,
+                NombreUsuarioAccion = $"{h.UsuarioAccion?.Nombre} {h.UsuarioAccion?.Apellido}".Trim(),
+                FechaCambio = h.FechaCambio,
+                Observaciones = h.Observaciones
+            })
+            .ToList();
+
+        return new BaseResponse<IEnumerable<HistorialEstadoCitaResponseDto>>
+        {
+            Success = true,
+            Data = lista
+        };
+    }
+
+    private static CitaResponseDto MapearADto(Cita c) => new()
+    {
+        IdCita = c.IdCita,
+        IdUsuarioCliente = c.IdUsuarioCliente,
+        IdUsuarioProfesional = c.IdUsuarioProfesional,
+        IdEstadoCita = c.IdEstadoCita,
+        FechaSolicitud = c.FechaSolicitud,
+        FechaServicioPactada = c.FechaServicioPactada,
+        DescripcionProblema = c.DescripcionProblema,
+        DireccionServicio = c.DireccionServicio,
+        FechaRespuesta = c.FechaRespuesta
+    };
 }

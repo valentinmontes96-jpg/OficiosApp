@@ -18,6 +18,12 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<Resena> Resenas { get; }
     public IGenericRepository<Notificacion> Notificaciones { get; }
     public IGenericRepository<ReporteUsuario> ReportesUsuarios { get; }
+    public IGenericRepository<Favorito> Favoritos { get; }
+    public IGenericRepository<HorarioAtencion> HorariosAtencion { get; }
+    public IGenericRepository<FotoPortfolio> FotosPortfolio { get; }
+    public IGenericRepository<HistorialEstadoCita> HistorialEstadosCita { get; }
+    public IGenericRepository<Rol> Roles { get; }
+    public IGenericRepository<EstadoCita> EstadoCita { get; }
 
     public UnitOfWork(ApplicationDbContext context)
     {
@@ -32,6 +38,13 @@ public class UnitOfWork : IUnitOfWork
         Resenas = new GenericRepository<Resena>(_context);
         Notificaciones = new GenericRepository<Notificacion>(_context);
         ReportesUsuarios = new GenericRepository<ReporteUsuario>(_context);
+        Favoritos = new GenericRepository<Favorito>(_context);
+        HorariosAtencion = new GenericRepository<HorarioAtencion>(_context);
+        FotosPortfolio = new GenericRepository<FotoPortfolio>(_context);
+        HistorialEstadosCita = new GenericRepository<HistorialEstadoCita>(_context);
+        Roles = new GenericRepository<Rol>(_context);
+        EstadoCita = new GenericRepository<EstadoCita>(_context);
+
     }
 
     public async Task<int> GuardarCambiosAsync()

@@ -42,7 +42,7 @@ public class ApplicationDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
-        // 1. Configuración de Claves Primarias Compuestas
+        // 1. Claves primarias compuestas
         modelBuilder.Entity<ProfesionalCategoria>()
             .HasKey(pc => new { pc.IdUsuarioProfesional, pc.IdCategoria });
 
@@ -52,7 +52,7 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<Favorito>()
             .HasKey(f => new { f.IdUsuarioCliente, f.IdUsuarioProfesional });
 
-        // 2. Relaciones 1 a 1 (Usuario -> Cliente / Profesional)
+        // 2. Relaciones 1 a 1
         modelBuilder.Entity<Cliente>()
             .HasOne(c => c.Usuario)
             .WithOne()
@@ -65,15 +65,13 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey<Profesional>(p => p.IdUsuario)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // 3. Relación 1 a 1 (Cita -> Reseña)
         modelBuilder.Entity<Resena>()
             .HasOne(r => r.Cita)
             .WithOne(c => c.Resena)
             .HasForeignKey<Resena>(r => r.IdCita)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // 4. Prevención de ciclos de borrado en cascada (Restrict)
-        // Evita errores de PostgreSQL al tener múltiples FK apuntando a la misma tabla
+        // 3. Prevención de ciclos y borrados en cascada conflictivos
         modelBuilder.Entity<Cita>()
             .HasOne(c => c.Cliente)
             .WithMany()
@@ -84,6 +82,24 @@ public class ApplicationDbContext : DbContext
             .HasOne(c => c.Profesional)
             .WithMany()
             .HasForeignKey(c => c.IdUsuarioProfesional)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<HistorialEstadoCita>()
+            .HasOne(h => h.UsuarioAccion)
+            .WithMany()
+            .HasForeignKey(h => h.IdUsuarioAccion)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Favorito>()
+            .HasOne(f => f.Cliente)
+            .WithMany()
+            .HasForeignKey(f => f.IdUsuarioCliente)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Favorito>()
+            .HasOne(f => f.Profesional)
+            .WithMany()
+            .HasForeignKey(f => f.IdUsuarioProfesional)
             .OnDelete(DeleteBehavior.Restrict);
 
         modelBuilder.Entity<ReporteUsuario>()
@@ -103,5 +119,17 @@ public class ApplicationDbContext : DbContext
             .WithMany()
             .HasForeignKey(r => r.IdAdministradorResolutor)
             .OnDelete(DeleteBehavior.SetNull);
+
+        // 4. Índices únicos
+        modelBuilder.Entity<Usuario>()
+            .HasIndex(u => u.Email)
+            .IsUnique();
+
+        // 5. Precisión de campos numéricos / decimales
+        modelBuilder.Entity<Profesional>()
+            .Property(p => p.TarifaBase)
+            .HasPrecision(10, 2);
+
+        
     }
 }
