@@ -1,0 +1,15 @@
+[
+  {
+    "Name": "Nuevo perfil",
+    "Projects": [
+      {
+        "Path": "OficiosApp.API\\OficiosApp.API.csproj",
+        "Action": "Start"
+      },
+      {
+        "Path": "OficiosApp.Mobile\\OficiosApp.Mobile.csproj",
+        "Action": "Start"
+      }
+    ]
+  }
+]

@@ -1,0 +1,178 @@
+@page "/registro"
+@layout Layout.EmptyLayout
+@inject NavigationManager Nav
+@inject OficiosApp.Mobile.Services.IAuthService AuthService
+
+<div class="h-full bg-gray-100 flex flex-col">
+
+    @if (pasoActual == 1)
+    {
+        <div class="bg-blue-600 text-white p-4 flex items-center shadow-md">
+            <span @onclick='() => Nav.NavigateTo("/login")' class="cursor-pointer mr-4 text-xl font-bold">←</span>
+            <span class="font-bold text-lg">Tus Datos</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 flex flex-col justify-center">
+            <p class="text-gray-600 mb-6 text-sm text-center">Completá tus datos para crear tu cuenta gratuita.</p>
+
+            <input type="text" @bind="registroDto.Nombre" placeholder="Nombre" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
+            <input type="text" @bind="registroDto.Apellido" placeholder="Apellido" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
+            <input type="tel" @bind="registroDto.Telefono" placeholder="Teléfono (Ej: 2954...)" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
+            <input type="email" @bind="registroDto.Email" placeholder="Correo electrónico" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
+            <input type="password" @bind="registroDto.Password" placeholder="Crear contraseña" class="w-full p-3 mb-8 rounded border border-gray-300 outline-none focus:border-blue-500">
+
+            @if (errorValidacion)
+            {
+                <p class="text-red-500 text-sm text-center mb-4">Completá todos los campos</p>
+            }
+
+            <button @onclick="IrAPaso2" class="w-full bg-blue-600 text-white font-bold p-4 rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
+                Siguiente
+            </button>
+        </div>
+    }
+    else if (pasoActual == 2)
+    {
+        <div class="flex-1 overflow-y-auto p-6 flex flex-col justify-center">
+            <div class="text-center mb-8">
+                <span @onclick="() => pasoActual = 1" class="cursor-pointer text-gray-500 block text-left mb-4 text-xl font-bold">← Atrás</span>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido!</h2>
+                <p class="text-gray-600">¿Cómo vas a usar HogarFix?</p>
+            </div>
+
+            <div @onclick='() => SeleccionarRol(2)' class="bg-white p-6 rounded-xl shadow-md mb-6 border-2 border-transparent hover:border-blue-500 cursor-pointer flex flex-col items-center transition-all active:scale-95">
+                <span class="text-5xl mb-3">🛠️</span>
+                <h3 class="font-bold text-lg text-gray-800">Soy Cliente</h3>
+                <p class="text-sm text-gray-500 text-center mt-2">Necesito contratar profesionales.</p>
+            </div>
+
+            <div @onclick='() => SeleccionarRol(3)' class="bg-white p-6 rounded-xl shadow-md border-2 border-transparent hover:border-blue-500 cursor-pointer flex flex-col items-center transition-all active:scale-95">
+                <span class="text-5xl mb-3">👷‍♂️</span>
+                <h3 class="font-bold text-lg text-gray-800">Soy Profesional</h3>
+                <p class="text-sm text-gray-500 text-center mt-2">Quiero ofrecer mis servicios.</p>
+            </div>
+        </div>
+    }
+    else if (pasoActual == 3)
+    {
+        <div class="bg-blue-600 text-white p-4 flex items-center shadow-md">
+            <span @onclick="() => pasoActual = 2" class="cursor-pointer mr-4 text-xl font-bold">←</span>
+            <span class="font-bold text-lg">Tus Especialidades</span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4">
+            <p class="text-gray-600 mb-6 text-sm">Seleccioná los oficios que realizás.</p>
+
+            <div class="bg-white rounded-lg shadow-sm border p-4 mb-8 space-y-4">
+                @foreach (var oficio in oficiosDisponibles)
+                {
+                    <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-blue-50 rounded transition-colors">
+                        <input type="checkbox" checked="@oficiosSeleccionados.Contains(oficio.Id)"
+                               @onchange="(e) => ToggleOficio(oficio.Id, (bool)(e.Value ?? false))"
+                               class="w-5 h-5 text-blue-600 rounded">
+                        <span class="text-gray-700 font-medium">@oficio.Icono @oficio.Nombre</span>
+                    </label>
+                }
+            </div>
+
+            @if (errorValidacion)
+            {
+                <p class="text-red-500 text-sm text-center mb-4">Seleccioná al menos un oficio</p>
+            }
+
+            <button @onclick="FinalizarRegistro" disabled="@cargando"
+                    class="w-full bg-blue-600 text-white font-bold p-4 rounded-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-70 disabled:animate-pulse">
+                @(cargando ? "Guardando..." : "Finalizar y Entrar")
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private int pasoActual = 1;
+    private bool cargando = false;
+    private bool errorValidacion = false;
+
+    
+    private OficiosApp.Shared.Dtos.Auth.Register.Request.RegisterRequestDto registroDto = new();
+
+
+    private List<OficioModel> oficiosDisponibles = new()
+    {
+        new() { Id = 1, Nombre = "Plomería", Icono = "🚰" },
+        new() { Id = 2, Nombre = "Electricidad", Icono = "⚡" },
+        new() { Id = 3, Nombre = "Gasista Matriculado", Icono = "🔥" },
+        new() { Id = 4, Nombre = "Cerrajería", Icono = "🔑" }
+    };
+
+    private List<int> oficiosSeleccionados = new();
+
+    private void IrAPaso2()
+    {
+        if (string.IsNullOrWhiteSpace(registroDto.Nombre) || string.IsNullOrWhiteSpace(registroDto.Email) || string.IsNullOrWhiteSpace(registroDto.Password))
+        {
+            errorValidacion = true;
+            return;
+        }
+        errorValidacion = false;
+        pasoActual = 2;
+    }
+
+    private async Task SeleccionarRol(int rol)
+    {
+        registroDto.IdRol = rol; 
+
+        if (rol == 2)
+        {
+            await FinalizarRegistro(); 
+        }
+        else
+        {
+            pasoActual = 3; 
+        }
+    }
+
+    private void ToggleOficio(int id, bool seleccionado)
+    {
+        if (seleccionado && !oficiosSeleccionados.Contains(id))
+            oficiosSeleccionados.Add(id);
+        else if (!seleccionado)
+            oficiosSeleccionados.Remove(id);
+    }
+
+    private async Task FinalizarRegistro()
+    {
+        if (registroDto.IdRol == 3 && oficiosSeleccionados.Count == 0)
+        {
+            errorValidacion = true;
+            return;
+        }
+
+        errorValidacion = false;
+        cargando = true;
+
+        
+        // registroDto.OficiosIds = oficiosSeleccionados;
+
+        bool exito = await AuthService.RegisterAsync(registroDto);
+
+        if (exito)
+        {
+            // Auto-login después de registrarse
+            var login = new OficiosApp.Shared.Dtos.Auth.Login.Request.LoginRequestDto { Email = registroDto.Email, Password = registroDto.Password };
+            await AuthService.LoginAsync(login);
+
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            
+            cargando = false;
+        }
+    }
+
+    public class OficioModel
+    {
+        public int Id { get; set; }
+        public string Nombre { get; set; } = "";
+        public string Icono { get; set; } = "";
+    }
+}

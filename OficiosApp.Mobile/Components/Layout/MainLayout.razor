@@ -1,0 +1,30 @@
+﻿@inherits LayoutComponentBase
+@inject NavigationManager Nav
+
+<div class="flex flex-col h-full bg-gray-100">
+
+    <!-- Contenido dinámico de la pantalla -->
+    <div class="flex-1 overflow-y-auto">
+        @Body
+    </div>
+
+    <!-- Tu barra inferior adaptada a Blazor -->
+    <div class="bg-white border-t border-gray-200 flex justify-around py-3 text-xs text-gray-500 pb-safe">
+
+        <div class="flex flex-col items-center cursor-pointer hover:text-blue-600" @onclick='() => Nav.NavigateTo("/")'>
+            <span class="text-xl mb-1">🏠</span>
+            <span class="font-bold">Home</span>
+        </div>
+
+        <div class="flex flex-col items-center cursor-pointer hover:text-blue-600" @onclick='() => Nav.NavigateTo("/citas")'>
+            <span class="text-xl mb-1">📅</span>
+            <span>Citas</span>
+        </div>
+
+        <div class="flex flex-col items-center cursor-pointer text-red-500 hover:text-red-700" @onclick='() => Nav.NavigateTo("/login")'>
+            <span class="text-xl mb-1">🚪</span>
+            <span>Salir</span>
+        </div>
+
+    </div>
+</div>

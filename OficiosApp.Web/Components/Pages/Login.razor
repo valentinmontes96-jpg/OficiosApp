@@ -1,0 +1,117 @@
+﻿@page "/login"
+@rendermode InteractiveServer
+@using OficiosApp.Shared.Dtos.Auth.Login.Request
+@using Microsoft.AspNetCore.Components.Authorization
+@using OficiosApp.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Iniciar Sesión — OficiosApp</PageTitle>
+
+<div class="auth-wrapper">
+    <div style="max-width: 440px; width: 100%;">
+        <div class="auth-card">
+            <div class="text-center">
+                <span class="auth-badge">OficiosApp Platform</span>
+                <h1 class="auth-title">Bienvenido</h1>
+                <p class="auth-subtitle">Ingresá tus credenciales para continuar</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="auth-alert-error" role="alert">
+                    <span>@errorMessage</span>
+                </div>
+            }
+
+            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                <DataAnnotationsValidator />
+
+                <div class="mb-3">
+                    <label class="auth-label">Correo Electrónico</label>
+                    <InputText @bind-Value="loginModel.Email" class="form-control auth-input" placeholder="ejemplo@correo.com" />
+                    <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small mt-1" />
+                </div>
+
+                <div class="mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <label class="auth-label mb-0">Contraseña</label>
+                    </div>
+                    <InputText @bind-Value="loginModel.Password" type="password" class="form-control auth-input" placeholder="••••••••••••" />
+                    <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1" />
+                </div>
+
+                <button type="submit" class="btn-auth-primary w-100 d-flex justify-content-center align-items-center" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Autenticando...</span>
+                    }
+                    else
+                    {
+                        <span>Acceder a la plataforma</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="text-center mt-4 pt-2 border-top border-secondary border-opacity-25">
+                <span class="text-muted small">¿Todavía no formás parte?</span>
+                <a href="/registro" class="auth-link ms-1 small">Creá tu cuenta</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginRequestDto loginModel = new();
+    private string? errorMessage;
+    private bool isLoading;
+
+    private async Task HandleLogin()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await AuthService.LoginAsync(loginModel);
+            if (result != null && !string.IsNullOrEmpty(result.Token))
+            {
+                var customAuthStateProvider = (CustomAuthStateProvider)AuthStateProvider;
+                await customAuthStateProvider.UpdateAuthenticationState(result.Token);
+
+                // Consultamos el estado actualizado para obtener los claims del token
+                var authState = await customAuthStateProvider.GetAuthenticationStateAsync();
+                var idRol = authState.User.FindFirst("IdRol")?.Value;
+
+                // Redirección directa según rol
+                if (idRol == "1")
+                {
+                    Navigation.NavigateTo("/admin");
+                }
+                else if (idRol == "3")
+                {
+                    Navigation.NavigateTo("/dashboard-pro");
+                }
+                else
+                {
+                    Navigation.NavigateTo("/explorar");
+                }
+            }
+            else
+            {
+                errorMessage = "Credenciales incorrectas. Verificá tu correo y contraseña.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "No se pudo establecer conexión con el servidor.";
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

@@ -3,7 +3,9 @@ using OficiosApp.Application.Interfaces;
 using OficiosApp.Domain.Entities;
 using OficiosApp.Domain.Interfaces;
 using OficiosApp.Shared.Dtos;
+using OficiosApp.Shared.Dtos.Auth.Register.Request;
 using OficiosApp.Shared.Dtos.Auth;
+using OficiosApp.Shared.Dtos.Auth.Login.Request;
 using OficiosApp.Shared.Dtos.Base;
 
 namespace OficiosApp.Application.Services;
@@ -24,7 +26,7 @@ public class AuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task<BaseResponse<AuthResponseDto>> RegistrarAsync(RegistroRequestDto dto)
+    public async Task<BaseResponse<AuthResponseDto>> RegistrarAsync(RegisterRequestDto dto)
     {
         var usuarios = await _unitOfWork.Usuarios.ObtenerTodosAsync();
         var existeEmail = usuarios.Any(u => u.Email.ToLower() == dto.Email.Trim().ToLower());

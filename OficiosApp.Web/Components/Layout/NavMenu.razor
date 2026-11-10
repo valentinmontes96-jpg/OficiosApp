@@ -1,0 +1,157 @@
+﻿@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using OficiosApp.Web.Services
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<div class="sidebar-wrapper d-flex flex-column h-100 p-3">
+    <!-- Brand / Logotipo -->
+    <div class="brand-section mb-4 px-2">
+        <a class="brand-link d-flex align-items-center gap-2 text-decoration-none" href="/">
+            <div class="brand-icon">🛠️</div>
+            <div class="d-flex flex-column">
+                <span class="brand-title">OficiosApp</span>
+                <span class="brand-tag">Gestión & Servicios</span>
+            </div>
+        </a>
+    </div>
+
+    <!-- Navegación según Rol y Estado de Autenticación -->
+    <div class="flex-grow-1 overflow-auto">
+        <AuthorizeView>
+            <Authorized>
+                @{
+                    var idRol = context.User.FindFirst("IdRol")?.Value;
+                    var esAdmin = idRol == "1";
+                    var esCliente = idRol == "2";
+                    var esProfesional = idRol == "3";
+                }
+
+                <!-- Tarjeta de Perfil en Sidebar -->
+                <div class="user-pill mb-4 p-2 rounded-3 d-flex align-items-center gap-2">
+                    <div class="user-avatar">
+                        @(context.User.Identity?.Name?.FirstOrDefault() ?? 'U')
+                    </div>
+                    <div class="user-info text-truncate">
+                        <div class="user-name text-truncate">@context.User.Identity?.Name</div>
+                        <span class="user-role-badge @(esAdmin ? "badge-admin" : esProfesional ? "badge-pro" : "badge-client")">
+                            @(esAdmin ? "Administrador" : esProfesional ? "Profesional" : "Cliente")
+                        </span>
+                    </div>
+                </div>
+
+                <nav class="nav flex-column gap-1">
+                    @if (esAdmin)
+                    {
+                        <!-- PANEL ADMINISTRADOR -->
+                        <span class="nav-section-title">Panel de Control</span>
+                        <NavLink class="nav-link-custom" href="/admin" Match="NavLinkMatch.All">
+                            <span class="nav-icon">📈</span>
+                            <span>Resumen General</span>
+                        </NavLink>
+
+                        <span class="nav-section-title mt-2">Gestión Maestros</span>
+                        <NavLink class="nav-link-custom" href="/admin/usuarios">
+                            <span class="nav-icon">👥</span>
+                            <span>Usuarios & Cuentas</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/admin/categorias">
+                            <span class="nav-icon">🏷️</span>
+                            <span>Categorías & Oficios</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/admin/zonas">
+                            <span class="nav-icon">📍</span>
+                            <span>Zonas de Cobertura</span>
+                        </NavLink>
+                    }
+                    else if (esCliente)
+                    {
+                        <!-- PANEL CLIENTE -->
+                        <span class="nav-section-title">Menú Cliente</span>
+                        <NavLink class="nav-link-custom" href="/explorar" Match="NavLinkMatch.All">
+                            <span class="nav-icon">🔍</span>
+                            <span>Explorar Profesionales</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/mis-solicitudes">
+                            <span class="nav-icon">📋</span>
+                            <span>Mis Solicitudes</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/mis-turnos">
+                            <span class="nav-icon">📅</span>
+                            <span>Turnos Reservados</span>
+                        </NavLink>
+                    }
+                    else if (esProfesional)
+                    {
+                        <!-- PANEL PROFESIONAL -->
+                        <span class="nav-section-title">Panel Profesional</span>
+                        <NavLink class="nav-link-custom" href="/dashboard-pro" Match="NavLinkMatch.All">
+                            <span class="nav-icon">📊</span>
+                            <span>Panel de Control</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/solicitudes-trabajo">
+                            <span class="nav-icon">🔔</span>
+                            <span>Trabajos Entrantes</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/mi-agenda">
+                            <span class="nav-icon">📆</span>
+                            <span>Agenda de Turnos</span>
+                        </NavLink>
+                        <NavLink class="nav-link-custom" href="/mis-servicios">
+                            <span class="nav-icon">⚙️</span>
+                            <span>Mis Oficios / Tarifas</span>
+                        </NavLink>
+                    }
+
+                    <!-- OPCIONES COMUNES CUENTA -->
+                    <span class="nav-section-title mt-3">Mi Cuenta</span>
+                    <NavLink class="nav-link-custom" href="/perfil">
+                        <span class="nav-icon">👤</span>
+                        <span>Datos de Perfil</span>
+                    </NavLink>
+                </nav>
+            </Authorized>
+
+            <NotAuthorized>
+                <!-- VISITANTES / PÚBLICO -->
+                <nav class="nav flex-column gap-1">
+                    <span class="nav-section-title">Navegación</span>
+                    <NavLink class="nav-link-custom" href="/" Match="NavLinkMatch.All">
+                        <span class="nav-icon">🏠</span>
+                        <span>Inicio</span>
+                    </NavLink>
+                    <NavLink class="nav-link-custom" href="/explorar">
+                        <span class="nav-icon">🔍</span>
+                        <span>Ver Profesionales</span>
+                    </NavLink>
+                </nav>
+
+                <div class="mt-4 pt-3 border-top border-secondary border-opacity-25 d-flex flex-column gap-2">
+                    <a href="/login" class="btn-auth-outline text-center text-decoration-none">Iniciar Sesión</a>
+                    <a href="/registro" class="btn-auth-solid text-center text-decoration-none">Registrarse</a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+
+    <!-- Botón de Cierre de Sesión en la parte inferior -->
+    <AuthorizeView>
+        <Authorized>
+            <div class="pt-3 border-top border-secondary border-opacity-25 mt-auto">
+                <button type="button" class="btn-logout w-100 d-flex align-items-center justify-content-center gap-2" @onclick="HandleLogout">
+                    <span>🚪</span>
+                    <span>Cerrar Sesión</span>
+                </button>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>
+
+@code {
+    private async Task HandleLogout()
+    {
+        var customAuth = (CustomAuthStateProvider)AuthStateProvider;
+        await customAuth.UpdateAuthenticationState(null);
+        Navigation.NavigateTo("/login");
+    }
+}

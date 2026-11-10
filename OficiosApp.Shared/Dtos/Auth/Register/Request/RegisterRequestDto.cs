@@ -1,8 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace OficiosApp.Shared.Dtos.Auth;
+namespace OficiosApp.Shared.Dtos.Auth.Register.Request;
 
-public class RegistroRequestDto
+public class RegisterRequestDto
 {
     [Required(ErrorMessage = "El nombre es obligatorio")]
     [MaxLength(100)]

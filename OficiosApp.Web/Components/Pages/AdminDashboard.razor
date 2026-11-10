@@ -1,0 +1,390 @@
+﻿@page "/admin"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using OficiosApp.Web.Services
+@inject IUsuarioService UsuarioService
+@inject ICategoriaService CategoriaService
+@inject IZonaService ZonaService
+@inject NavigationManager Navigation
+
+<PageTitle>Panel de Administración — OficiosApp</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            var idRol = context.User.FindFirst("IdRol")?.Value;
+            if (idRol != "1")
+            {
+                Navigation.NavigateTo("/explorar");
+            }
+        }
+
+        <div class="minimal-bg py-5">
+            <div class="container">
+
+                <!-- Header Minimalista -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-end mb-5 gap-3">
+                    <div>
+                        <span class="text-slate-500 small fw-semibold text-uppercase tracking-wider mb-2 d-block">Módulo Administrativo</span>
+                        <h1 class="display-6 fw-bold text-white mb-2 tracking-tight">Panel de Control</h1>
+                        <p class="text-slate-400 mb-0 fw-light">Supervisión en tiempo real de la plataforma.</p>
+                    </div>
+                    <button class="btn-minimal d-flex align-items-center gap-2" @onclick="CargarMetricas" disabled="@cargando">
+                        <span class="@(cargando ? "spinner-border spinner-border-sm" : "")" style="font-size: 1.1rem;">↻</span>
+                        <span>Actualizar Métricas</span>
+                    </button>
+                </div>
+
+                <!-- Métricas Clave (Tarjetas Limpias) -->
+                <div class="row g-4 mb-5">
+                    <!-- Total Usuarios -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="minimal-stat-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-slate-400 small fw-medium text-uppercase tracking-wider">Usuarios</span>
+                                <span class="stat-icon">👥</span>
+                            </div>
+                            <div class="h2 fw-bold text-white mb-2">
+                                @if (cargando)
+                                {
+                                    <span class="spinner-border spinner-border-sm text-slate-500"></span>
+                                }
+                                else
+                                {
+
+                                    @totalUsuarios
+                                }
+                            </div>
+                            <div class="d-flex gap-2 text-slate-500" style="font-size: 0.75rem;">
+                                <span>Adm: <span class="text-slate-300">@totalAdmins</span></span> •
+                                <span>Cli: <span class="text-slate-300">@totalClientes</span></span> •
+                                <span>Pro: <span class="text-slate-300">@totalProfesionales</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Categorías -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="minimal-stat-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-slate-400 small fw-medium text-uppercase tracking-wider">Categorías</span>
+                                <span class="stat-icon">🏷️</span>
+                            </div>
+                            <div class="h2 fw-bold text-white mb-2">
+                                @if (cargando)
+                                {
+                                    <span class="spinner-border spinner-border-sm text-slate-500"></span>
+                                }
+                                else
+                                {
+
+                                    @totalCategorias
+                                }
+                            </div>
+                            <span class="text-slate-500" style="font-size: 0.8rem;">
+                                <span class="text-amber">@categoriasActivas</span> activas en sistema
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Zonas -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="minimal-stat-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-slate-400 small fw-medium text-uppercase tracking-wider">Zonas</span>
+                                <span class="stat-icon">📍</span>
+                            </div>
+                            <div class="h2 fw-bold text-white mb-2">
+                                @if (cargando)
+                                {
+                                    <span class="spinner-border spinner-border-sm text-slate-500"></span>
+                                }
+                                else
+                                {
+
+                                    @totalZonas
+                                }
+                            </div>
+                            <span class="text-slate-500" style="font-size: 0.8rem;">
+                                <span class="text-amber">@zonasActivas</span> habilitadas
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- API Status -->
+                    <div class="col-12 col-sm-6 col-xl-3">
+                        <div class="minimal-stat-card">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span class="text-slate-400 small fw-medium text-uppercase tracking-wider">Estado API</span>
+                                <span class="stat-icon">⚡</span>
+                            </div>
+                            <div class="h2 fw-bold text-success mb-2 d-flex align-items-center gap-2">
+                                <div class="pulse-dot"></div> OK
+                            </div>
+                            <span class="text-slate-500" style="font-size: 0.8rem;">
+                                Endpoints sincronizados
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accesos Directos a Módulos -->
+                <div class="row g-4">
+                    <div class="col-12 col-md-4">
+                        <a href="/admin/usuarios" class="minimal-module-card text-decoration-none">
+                            <div class="module-icon-wrapper mb-4">👥</div>
+                            <h5 class="text-white fw-semibold mb-2">Gestión de Usuarios</h5>
+                            <p class="text-slate-400 small flex-grow-1 mb-4" style="line-height: 1.6;">
+                                Auditoría de cuentas, modificación de roles (Admin, Cliente, Profesional) y control de accesos.
+                            </p>
+                            <div class="mt-auto d-flex align-items-center text-amber fw-medium small transition-color">
+                                Entrar al módulo <span class="ms-1 arrow">→</span>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <a href="/admin/categorias" class="minimal-module-card text-decoration-none">
+                            <div class="module-icon-wrapper mb-4">🏷️</div>
+                            <h5 class="text-white fw-semibold mb-2">Categorías & Oficios</h5>
+                            <p class="text-slate-400 small flex-grow-1 mb-4" style="line-height: 1.6;">
+                                Alta de nuevos rubros, edición de nombres y desactivación lógica de los oficios ofrecidos.
+                            </p>
+                            <div class="mt-auto d-flex align-items-center text-amber fw-medium small transition-color">
+                                Entrar al módulo <span class="ms-1 arrow">→</span>
+                            </div>
+                        </a>
+                    </div>
+
+                    <div class="col-12 col-md-4">
+                        <a href="/admin/zonas" class="minimal-module-card text-decoration-none">
+                            <div class="module-icon-wrapper mb-4">📍</div>
+                            <h5 class="text-white fw-semibold mb-2">Zonas de Cobertura</h5>
+                            <p class="text-slate-400 small flex-grow-1 mb-4" style="line-height: 1.6;">
+                                Mantenimiento de barrios y localidades disponibles para que los profesionales configuren su alcance.
+                            </p>
+                            <div class="mt-auto d-flex align-items-center text-amber fw-medium small transition-color">
+                                Entrar al módulo <span class="ms-1 arrow">→</span>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="minimal-bg d-flex justify-content-center align-items-center vh-100">
+            <div class="text-center minimal-card p-5" style="max-width: 400px;">
+                <h4 class="text-white fw-semibold mb-2">Acceso Denegado</h4>
+                <p class="text-slate-400 small mb-4">Necesitás privilegios de administrador para ver esta sección.</p>
+                <a href="/login" class="btn-minimal d-inline-block">Ir a Iniciar Sesión</a>
+            </div>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+<style>
+    /* Estilos Minimalistas del Dashboard */
+    .minimal-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .tracking-tight {
+        letter-spacing: -0.02em;
+    }
+
+    .tracking-wider {
+        letter-spacing: 0.05em;
+    }
+
+    .text-slate-300 {
+        color: #cbd5e1;
+    }
+
+    .text-slate-400 {
+        color: #94a3b8;
+    }
+
+    .text-slate-500 {
+        color: #64748b;
+    }
+
+    .text-amber {
+        color: #f59e0b;
+    }
+
+    /* Botón */
+    .btn-minimal {
+        background-color: transparent;
+        color: #f8fafc;
+        border: 1px solid #1e293b;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        text-decoration: none;
+    }
+
+        .btn-minimal:hover:not(:disabled) {
+            background-color: #f8fafc;
+            color: #05080f;
+            border-color: #f8fafc;
+        }
+
+        .btn-minimal:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+    /* Tarjetas de Estadísticas */
+    .minimal-stat-card {
+        background-color: #0b0f19;
+        border: 1px solid #161e2e;
+        border-radius: 16px;
+        padding: 24px;
+        height: 100%;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+        .minimal-stat-card:hover {
+            transform: translateY(-3px);
+            border-color: #1e293b;
+        }
+
+    .stat-icon {
+        font-size: 1.2rem;
+        opacity: 0.8;
+    }
+
+    /* Tarjetas Interactivas de Módulos */
+    .minimal-module-card {
+        background-color: #0a0e17;
+        border: 1px solid #161e2e;
+        border-radius: 16px;
+        padding: 32px 24px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+        .minimal-module-card:hover {
+            background-color: #0d1321;
+            border-color: #334155;
+            transform: translateY(-6px);
+            box-shadow: 0 12px 30px -10px rgba(0,0,0,0.5);
+        }
+
+        .minimal-module-card .arrow {
+            transition: transform 0.2s ease;
+        }
+
+        .minimal-module-card:hover .arrow {
+            transform: translateX(4px);
+        }
+
+        .minimal-module-card:hover .transition-color {
+            color: #fbbf24 !important; /* amber más brillante al hover */
+        }
+
+    .module-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.4rem;
+    }
+
+    /* Punto verde parpadeante de la API */
+    .pulse-dot {
+        width: 10px;
+        height: 10px;
+        background-color: #10b981;
+        border-radius: 50%;
+        box-shadow: 0 0 0 rgba(16, 185, 129, 0.4);
+        animation: pulse 2s infinite;
+    }
+    @@keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+        }
+
+        70% {
+            box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+        }
+
+        100% {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+        }
+    }
+</style>
+
+@code {
+    private bool cargando = true;
+
+    // Métricas de Usuarios
+    private int totalUsuarios = 0;
+    private int totalAdmins = 0;
+    private int totalClientes = 0;
+    private int totalProfesionales = 0;
+
+    // Métricas de Categorías
+    private int totalCategorias = 0;
+    private int categoriasActivas = 0;
+
+    // Métricas de Zonas
+    private int totalZonas = 0;
+    private int zonasActivas = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarMetricas();
+    }
+
+    private async Task CargarMetricas()
+    {
+        cargando = true;
+
+        try
+        {
+            // Ejecución concurrente para no bloquear secuencialmente la carga
+            var tareaUsuarios = UsuarioService.ObtenerTodosAsync();
+            var tareaCategorias = CategoriaService.ObtenerTodasAsync(soloActivas: false);
+            var tareaZonas = ZonaService.ObtenerTodasAsync(soloActivas: false);
+
+            await Task.WhenAll(tareaUsuarios, tareaCategorias, tareaZonas);
+
+            var usuarios = await tareaUsuarios;
+            var categorias = await tareaCategorias;
+            var zonas = await tareaZonas;
+
+            // Procesamiento de Usuarios
+            totalUsuarios = usuarios.Count;
+            totalAdmins = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Admin", StringComparison.OrdinalIgnoreCase));
+            totalClientes = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Cliente", StringComparison.OrdinalIgnoreCase));
+            totalProfesionales = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Profesional", StringComparison.OrdinalIgnoreCase));
+
+            // Procesamiento de Categorías
+            totalCategorias = categorias.Count;
+            categoriasActivas = categorias.Count(c => c.Activa);
+
+            // Procesamiento de Zonas
+            totalZonas = zonas.Count;
+            zonasActivas = zonas.Count(z => z.Activa);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al sincronizar métricas de administración: {ex.Message}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+}

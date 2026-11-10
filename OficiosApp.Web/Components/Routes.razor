@@ -1,0 +1,29 @@
+﻿<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <div class="container py-5 text-center">
+                    <h3 class="text-white fw-bold mb-2">Acceso No Autorizado</h3>
+                    <p class="text-secondary small mb-3">No tenés permisos para acceder a esta sección o tu sesión caducó.</p>
+                    <a href="/login" class="btn btn-amber btn-sm">Iniciar Sesión</a>
+                </div>
+            </NotAuthorized>
+            <Authorizing>
+                <div class="text-center py-5">
+                    <div class="spinner-border text-amber" role="status"></div>
+                    <p class="text-secondary small mt-2">Validando credenciales...</p>
+                </div>
+            </Authorizing>
+        </AuthorizeRouteView>
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="typeof(Layout.MainLayout)">
+            <div class="container py-5 text-center">
+                <h2 class="text-white">Página no encontrada</h2>
+                <p class="text-secondary">La ruta solicitada no existe.</p>
+                <a href="/" class="btn btn-outline-secondary btn-sm">Volver al Inicio</a>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>

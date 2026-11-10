@@ -1,0 +1,147 @@
+:root {
+    --bg-app: #f4f5f7;
+    --bg-card: #ffffff;
+    --text-main: #111827;
+    --text-muted: #6b7280;
+    --primary: #0f172a;
+    --primary-hover: #1e293b;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--bg-app);
+    color: var(--text-main);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* Contenedor principal de pantalla móvil */
+.screen-container {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    gap: 16px;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Tarjetas */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card-interactive {
+    transition: transform 0.1s ease, border-color 0.1s ease;
+}
+
+    .card-interactive:active {
+        transform: scale(0.98);
+        border-color: #cbd5e1;
+    }
+
+/* Tipografía */
+.title-lg {
+    font-size: 1.25rem;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0;
+}
+
+.text-muted {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+/* Formularios y entradas táctiles */
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+.input-field {
+    width: 100%;
+    height: 48px;
+    padding: 0 14px;
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9375rem;
+    color: var(--text-main);
+    outline: none;
+}
+
+    .input-field:focus {
+        border-color: var(--accent);
+    }
+
+/* Botones */
+.btn-primary {
+    width: 100%;
+    height: 48px;
+    background-color: var(--primary);
+    color: #ffffff;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .btn-primary:active {
+        background-color: var(--primary-hover);
+    }
+
+.btn-secondary {
+    width: 100%;
+    height: 48px;
+    background-color: #ffffff;
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    border-radius: 8px;
+}
+
+/* Badges / Etiquetas de estado */
+.badge {
+    display: inline-flex;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border-radius: 4px;
+    width: fit-content;
+}
+
+.badge-pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.badge-completed {
+    background-color: #dcfce7;
+    color: #166534;
+}

@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace OficiosApp.Shared.Dtos.Auth;
+namespace OficiosApp.Shared.Dtos.Auth.Login.Request;
 
 public class LoginRequestDto
 {

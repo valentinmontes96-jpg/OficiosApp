@@ -3,5 +3,7 @@
   <Project Path="OficiosApp.Application/OficiosApp.Application.csproj" />
   <Project Path="OficiosApp.Domain/OficiosApp.Domain.csproj" />
   <Project Path="OficiosApp.Infrastructure/OficiosApp.Infrastructure.csproj" />
+  <Project Path="OficiosApp.Mobile/OficiosApp.Mobile.csproj" />
   <Project Path="OficiosApp.Shared/OficiosApp.Shared.csproj" />
+  <Project Path="OficiosApp.Web/OficiosApp.Web.csproj" />
 </Solution>

@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Mvc;
 using OficiosApp.Application.Interfaces;
 using OficiosApp.Shared.Dtos.Auth;
+using OficiosApp.Shared.Dtos.Auth.Register.Request;
+using OficiosApp.Shared.Dtos.Auth.Login.Request;
 
 namespace OficiosApp.API.Controllers;
 
@@ -18,7 +20,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("registro")]
-    public async Task<IActionResult> Registrar([FromBody] RegistroRequestDto dto)
+    public async Task<IActionResult> Registrar([FromBody] RegisterRequestDto dto)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);

@@ -1,0 +1,532 @@
+﻿@page "/admin/usuarios"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using OficiosApp.Shared.Dtos.Usuarios
+@using OficiosApp.Web.Services
+@inject IUsuarioService UsuarioService
+@inject NavigationManager Navigation
+
+<PageTitle>Usuarios — OficiosApp</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            var idRol = context.User.FindFirst("IdRol")?.Value;
+            if (idRol != "1")
+            {
+                Navigation.NavigateTo("/explorar");
+            }
+        }
+
+        <div class="minimal-bg py-5">
+            <div class="container">
+
+                <!-- Header -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-end mb-5 gap-3">
+                    <div>
+                        <span class="text-slate-500 small fw-semibold text-uppercase tracking-wider mb-2 d-block">Administración</span>
+                        <h1 class="display-6 fw-bold text-white mb-2 tracking-tight">Cuentas y Accesos</h1>
+                        <p class="text-slate-400 mb-0 fw-light">Gestioná los usuarios registrados en la plataforma.</p>
+                    </div>
+                </div>
+
+                <!-- Buscador y Filtros -->
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 mb-5 p-3 rounded-4" style="background-color: #0a0e17; border: 1px solid #161e2e;">
+                    <div class="position-relative w-100" style="max-width: 400px;">
+                        <span class="position-absolute top-50 translate-middle-y ms-3 text-slate-500">🔍</span>
+                        <input type="text"
+                               class="form-control bg-transparent text-white shadow-none ps-5 minimal-input"
+                               placeholder="Buscar por nombre o email..."
+                               @bind="filtroTexto"
+                               @bind:event="oninput" />
+                    </div>
+
+                    <div class="d-flex gap-3 w-100 justify-content-md-end">
+                        <select class="form-select bg-transparent text-slate-300 shadow-none minimal-select" @bind="filtroRol" style="max-width: 200px;">
+                            <option value="" class="text-dark">Todos los roles</option>
+                            <option value="Admin" class="text-dark">Administradores</option>
+                            <option value="Cliente" class="text-dark">Clientes</option>
+                            <option value="Profesional" class="text-dark">Profesionales</option>
+                        </select>
+                        <div class="d-flex align-items-center justify-content-center px-3 rounded-3" style="background-color: #0f172a; border: 1px solid #1e293b;">
+                            <span class="text-slate-400 small">Total: <strong class="text-white">@usuariosFiltrados.Count</strong></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grilla de Tarjetas (Reemplaza a la tabla) -->
+                @if (cargando)
+                {
+                    <div class="d-flex justify-content-center py-5">
+                        <div class="spinner-grow text-slate-500 spinner-grow-sm mx-1" role="status"></div>
+                        <div class="spinner-grow text-slate-500 spinner-grow-sm mx-1" role="status"></div>
+                        <div class="spinner-grow text-slate-500 spinner-grow-sm mx-1" role="status"></div>
+                    </div>
+                }
+                else if (!usuariosFiltrados.Any())
+                {
+                    <div class="text-center py-5">
+                        <div class="fs-1 mb-3 text-slate-600 opacity-50">👥</div>
+                        <h5 class="text-white fw-medium">No hay usuarios</h5>
+                        <p class="text-slate-500 small">No se encontraron cuentas con esos filtros.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="row g-4">
+                        @foreach (var u in usuariosFiltrados)
+                        {
+                            <div class="col-12 col-md-6 col-lg-4 col-xl-3">
+                                <div class="minimal-card h-100 p-4 d-flex flex-column position-relative">
+
+                                    <!-- Rol y Estado en la esquina -->
+                                    <div class="position-absolute top-0 end-0 mt-3 me-3 d-flex gap-2">
+                                        @if (u.Rol.Contains("Admin", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge-rol role-admin">Admin</span>
+                                        }
+                                        else if (u.Rol.Contains("Profesional", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <span class="badge-rol role-pro">Pro</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge-rol role-client">Cliente</span>
+                                        }
+                                    </div>
+
+                                    <div class="minimal-avatar mb-3 mt-1">
+                                        @(u.Nombre?.FirstOrDefault())@(u.Apellido?.FirstOrDefault())
+                                    </div>
+
+                                    <h6 class="text-white fw-bold mb-1 text-truncate">@u.Nombre @u.Apellido</h6>
+                                    <p class="text-slate-400 small mb-2 text-truncate" title="@u.Email">@u.Email</p>
+
+                                    <div class="text-slate-500 small mb-4 d-flex align-items-center gap-2">
+                                        <span>📱</span> @(string.IsNullOrWhiteSpace(u.Telefono) ? "Sin teléfono" : u.Telefono)
+                                    </div>
+
+                                    <!-- Botones de Acción integrados -->
+                                    <div class="mt-auto d-flex gap-2 pt-3 border-top-subtle">
+                                        <button class="btn btn-minimal flex-grow-1" @onclick="() => AbrirModalEdicion(u)">
+                                            ✏️ Editar
+                                        </button>
+                                        <button class="btn btn-minimal-danger px-3" @onclick="() => EliminarUsuario(u.IdUsuario)" title="Eliminar cuenta">
+                                            🗑️
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Modal Minimalista superpuesto -->
+        @if (mostrarModal)
+        {
+            <div class="modal-backdrop-minimal">
+                <div class="minimal-modal-card p-4 rounded-4 shadow-lg">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="text-white fw-bold mb-0">Editar Cuenta</h5>
+                        <button class="btn-close-minimal" @onclick="CerrarModal">✕</button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger py-2 small mb-4 border-0" style="background-color: rgba(220, 38, 38, 0.1); color: #f87171;">
+                            @mensajeError
+                        </div>
+                    }
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="text-slate-400 small fw-medium mb-1">Nombre</label>
+                            <input type="text" class="form-control minimal-input" @bind="formNombre" />
+                        </div>
+                        <div class="col-6">
+                            <label class="text-slate-400 small fw-medium mb-1">Apellido</label>
+                            <input type="text" class="form-control minimal-input" @bind="formApellido" />
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-slate-400 small fw-medium mb-1">Email <span class="text-slate-600 fw-normal">(No editable)</span></label>
+                        <input type="email" class="form-control minimal-input text-slate-500" value="@emailSeleccionado" disabled style="background-color: rgba(255,255,255,0.02);" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="text-slate-400 small fw-medium mb-1">Teléfono</label>
+                        <input type="text" class="form-control minimal-input" @bind="formTelefono" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="text-slate-400 small fw-medium mb-1">Rol de Acceso</label>
+                        <select class="form-select minimal-select" @bind="formIdRol">
+                            <option value="1" class="text-dark">Administrador (Control total)</option>
+                            <option value="2" class="text-dark">Cliente (Solo busca y contrata)</option>
+                            <option value="3" class="text-dark">Profesional (Ofrece servicios)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-check form-switch d-flex align-items-center gap-2 mb-4 p-0 custom-minimal-switch">
+                        <input class="form-check-input m-0" type="checkbox" id="switchUsuarioActivo" @bind="formActivo">
+                        <label class="form-check-label text-slate-300 small" for="switchUsuarioActivo" style="cursor:pointer;">
+                            Cuenta Activa (Puede iniciar sesión)
+                        </label>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2 pt-3 border-top-subtle">
+                        <button class="btn btn-minimal" @onclick="CerrarModal" disabled="@guardando">
+                            Cancelar
+                        </button>
+                        <button class="btn btn-minimal-primary" @onclick="GuardarUsuario" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-2"></span>
+                            }
+                            Guardar Cambios
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+<style>
+    .minimal-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .tracking-tight {
+        letter-spacing: -0.02em;
+    }
+
+    .tracking-wider {
+        letter-spacing: 0.05em;
+    }
+
+    .text-slate-300 {
+        color: #cbd5e1;
+    }
+
+    .text-slate-400 {
+        color: #94a3b8;
+    }
+
+    .text-slate-500 {
+        color: #64748b;
+    }
+
+    .border-top-subtle {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    /* Inputs minimalistas */
+    .minimal-input, .minimal-select {
+        background-color: transparent;
+        border: 1px solid #1e293b;
+        color: #f8fafc;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+
+        .minimal-input:focus, .minimal-select:focus {
+            border-color: #475569;
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.03);
+            background-color: rgba(255,255,255,0.01);
+            color: #f8fafc;
+        }
+
+        .minimal-input::placeholder {
+            color: #475569;
+        }
+
+    /* Tarjeta de elemento */
+    .minimal-card {
+        background-color: #0b0f19;
+        border: 1px solid #161e2e;
+        border-radius: 16px;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+        .minimal-card:hover {
+            transform: translateY(-4px);
+            border-color: #1e293b;
+        }
+
+    /* Badges de Roles */
+    .badge-rol {
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 4px 8px;
+        border-radius: 6px;
+    }
+
+    .role-admin {
+        background-color: rgba(220, 38, 38, 0.1);
+        color: #f87171;
+        border: 1px solid rgba(220, 38, 38, 0.2);
+    }
+
+    .role-pro {
+        background-color: rgba(245, 158, 11, 0.1);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .role-client {
+        background-color: rgba(56, 189, 248, 0.1);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+    }
+
+    .minimal-avatar {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 1.1rem;
+        border: 1px solid #334155;
+    }
+
+    /* Botones */
+    .btn-minimal {
+        background-color: transparent;
+        color: #e2e8f0;
+        border: 1px solid #1e293b;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+        .btn-minimal:hover {
+            background-color: #1e293b;
+            color: #fff;
+        }
+
+    .btn-minimal-primary {
+        background-color: #f59e0b;
+        color: #05080f;
+        border: 1px solid #f59e0b;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+
+        .btn-minimal-primary:hover {
+            background-color: #d97706;
+            border-color: #d97706;
+        }
+
+    .btn-minimal-danger {
+        background-color: transparent;
+        color: #ef4444;
+        border: 1px solid #1e293b;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+        .btn-minimal-danger:hover {
+            background-color: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+    /* Modal */
+    .modal-backdrop-minimal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(5, 8, 15, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 1050;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .minimal-modal-card {
+        background-color: #0b0f19;
+        border: 1px solid #1e293b;
+        width: 100%;
+        max-width: 500px;
+    }
+
+    .btn-close-minimal {
+        background: transparent;
+        border: none;
+        color: #64748b;
+        font-size: 1.2rem;
+        cursor: pointer;
+        transition: color 0.2s ease;
+    }
+
+        .btn-close-minimal:hover {
+            color: #f8fafc;
+        }
+
+    /* Switch */
+    .custom-minimal-switch .form-check-input {
+        background-color: #1e293b;
+        border-color: #334155;
+        height: 1.2rem;
+        width: 2.2rem;
+    }
+
+        .custom-minimal-switch .form-check-input:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+
+        .custom-minimal-switch .form-check-input:focus {
+            box-shadow: none;
+            border-color: #475569;
+        }
+</style>
+
+@code {
+    private List<UsuarioDto> usuarios = new();
+    private string filtroTexto = string.Empty;
+    private string filtroRol = string.Empty;
+    private bool cargando = true;
+    private bool guardando = false;
+
+    private bool mostrarModal = false;
+    private int idSeleccionado = 0;
+    private string emailSeleccionado = string.Empty;
+    private string formNombre = string.Empty;
+    private string formApellido = string.Empty;
+    private string formTelefono = string.Empty;
+    private int formIdRol = 2;
+    private bool formActivo = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarUsuarios();
+    }
+
+    private async Task CargarUsuarios()
+    {
+        cargando = true;
+        usuarios = await UsuarioService.ObtenerTodosAsync();
+        cargando = false;
+    }
+
+    private List<UsuarioDto> usuariosFiltrados
+    {
+        get
+        {
+            var resultado = usuarios.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            {
+                var f = filtroTexto.Trim().ToLower();
+                resultado = resultado.Where(u =>
+                    (u.Nombre != null && u.Nombre.ToLower().Contains(f)) ||
+                    (u.Apellido != null && u.Apellido.ToLower().Contains(f)) ||
+                    (u.Email != null && u.Email.ToLower().Contains(f))
+                );
+            }
+
+            if (!string.IsNullOrWhiteSpace(filtroRol))
+            {
+                resultado = resultado.Where(u => u.Rol != null && u.Rol.Contains(filtroRol, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return resultado.ToList();
+        }
+    }
+
+    private void AbrirModalEdicion(UsuarioDto usuario)
+    {
+        idSeleccionado = usuario.IdUsuario;
+        emailSeleccionado = usuario.Email;
+        formNombre = usuario.Nombre;
+        formApellido = usuario.Apellido;
+        formTelefono = usuario.Telefono ?? string.Empty;
+
+        if (usuario.Rol.Contains("Admin", StringComparison.OrdinalIgnoreCase))
+            formIdRol = 1;
+        else if (usuario.Rol.Contains("Profesional", StringComparison.OrdinalIgnoreCase))
+            formIdRol = 3;
+        else
+            formIdRol = 2;
+
+        formActivo = true;
+        mensajeError = null;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        mensajeError = null;
+    }
+
+    private async Task GuardarUsuario()
+    {
+        if (string.IsNullOrWhiteSpace(formNombre) || string.IsNullOrWhiteSpace(formApellido))
+        {
+            mensajeError = "Nombre y apellido son obligatorios.";
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(formTelefono))
+        {
+            mensajeError = "El teléfono es obligatorio.";
+            return;
+        }
+
+        guardando = true;
+        mensajeError = null;
+
+        var dto = new ActualizarUsuarioAdminDto
+        {
+            Nombre = formNombre.Trim(),
+            Apellido = formApellido.Trim(),
+            Telefono = formTelefono.Trim(),
+            IdRol = formIdRol,
+            Activo = formActivo
+        };
+
+        var ok = await UsuarioService.ActualizarAsync(idSeleccionado, dto);
+        if (ok)
+        {
+            await CargarUsuarios();
+            CerrarModal();
+        }
+        else
+        {
+            mensajeError = "No se pudo actualizar el usuario. Verificá permisos o validaciones del servidor.";
+        }
+
+        guardando = false;
+    }
+
+    private async Task EliminarUsuario(int id)
+    {
+        var ok = await UsuarioService.EliminarAsync(id);
+        if (ok)
+        {
+            await CargarUsuarios();
+        }
+    }
+}

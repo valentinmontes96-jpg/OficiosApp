@@ -1,0 +1,346 @@
+﻿@page "/admin/categorias"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using OficiosApp.Shared.Dtos.Categoria
+@using OficiosApp.Web.Services
+@inject ICategoriaService CategoriaService
+@inject NavigationManager Navigation
+
+<PageTitle>Gestión de Categorías — Admin</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            var idRol = context.User.FindFirst("IdRol")?.Value;
+            if (idRol != "1")
+            {
+                Navigation.NavigateTo("/explorar");
+            }
+        }
+
+        <div class="container py-4">
+            <!-- Encabezado -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <span class="badge-admin">Módulo Admin</span>
+                    <h1 class="h2 fw-bold text-white mb-1">Categorías & Oficios</h1>
+                    <p class="text-secondary small mb-0">Administrá los rubros de trabajo del sistema.</p>
+                </div>
+                <button class="btn btn-amber fw-semibold d-flex align-items-center gap-2" @onclick="AbrirModalCreacion">
+                    <span>➕</span>
+                    <span>Nueva Categoría</span>
+                </button>
+            </div>
+
+            <!-- Filtros -->
+            <div class="card bg-surface-card border-slate p-3 mb-4 rounded-3">
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-input border-slate text-secondary">🔍</span>
+                            <input type="text"
+                                   class="form-control auth-input"
+                                   placeholder="Buscar por nombre o descripción..."
+                                   @bind="filtroTexto"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex justify-content-md-end gap-2 align-items-center">
+                        <div class="form-check form-switch custom-switch me-2">
+                            <input class="form-check-input" type="checkbox" id="switchSoloActivas" @bind="soloActivas" @bind:after="CargarCategorias">
+                            <label class="form-check-label text-slate-200 small ms-2" for="switchSoloActivas">
+                                Solo activas
+                            </label>
+                        </div>
+                        <span class="badge bg-dark border border-secondary text-light px-3 py-2">
+                            Total: @categoriasFiltradas.Count
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla -->
+            @if (cargando)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-amber" role="status"></div>
+                    <p class="text-secondary mt-2 small">Cargando categorías...</p>
+                </div>
+            }
+            else if (!categoriasFiltradas.Any())
+            {
+                <div class="card bg-surface-card border-slate text-center py-5 px-3 rounded-3">
+                    <div class="fs-1 mb-2">🏷️</div>
+                    <h5 class="text-white fw-semibold">No se encontraron categorías</h5>
+                    <p class="text-secondary small mb-0">Podés agregar una nueva usando el botón superior.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card bg-surface-card border-slate rounded-3 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="border-slate-subtle">
+                                <tr class="text-secondary small text-uppercase">
+                                    <th style="width: 70px;">ID</th>
+                                    <th style="width: 80px;">Ícono</th>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th style="width: 110px;" class="text-center">Estado</th>
+                                    <th style="width: 130px;" class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cat in categoriasFiltradas)
+                                {
+                                    <tr>
+                                        <td class="text-secondary font-monospace small">#@cat.IdCategoria</td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(cat.IconoUrl))
+                                            {
+                                                @if (cat.IconoUrl.StartsWith("http") || cat.IconoUrl.StartsWith("/"))
+                                                {
+                                                    <img src="@cat.IconoUrl" alt="@cat.Nombre" style="width: 28px; height: 28px; object-fit: contain;" />
+                                                }
+                                                else
+                                                {
+                                                    <span class="fs-5">@cat.IconoUrl</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span class="fs-5 text-secondary">🛠️</span>
+                                            }
+                                        </td>
+                                        <td class="text-white fw-semibold">@cat.Nombre</td>
+                                        <td class="text-secondary small">
+                                            @(string.IsNullOrWhiteSpace(cat.Descripcion) ? "—" : cat.Descripcion)
+                                        </td>
+                                        <td class="text-center">
+                                            @if (cat.Activa)
+                                            {
+                                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2 py-1">Activa</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 px-2 py-1">Inactiva</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-secondary" title="Editar" @onclick="() => AbrirModalEdicion(cat)">
+                                                    ✏️
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Eliminar" @onclick="() => EliminarCategoria(cat.IdCategoria)">
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Modal Crear / Editar -->
+        @if (mostrarModal)
+        {
+            <div class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
+                <div class="modal-dialog-custom card bg-surface-card border-slate p-4 rounded-3 shadow-lg">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white fw-bold mb-0">
+                            @(esEdicion ? "Editar Categoría" : "Nueva Categoría")
+                        </h5>
+                        <button class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger py-2 small mb-3">@mensajeError</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label text-slate-200 small">Nombre * (máx 80 car.)</label>
+                        <input type="text" maxlength="80" class="form-control auth-input" placeholder="Ej: Plomería" @bind="formNombre" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-slate-200 small">Ícono / Emoji (máx 255 car.)</label>
+                        <input type="text" maxlength="255" class="form-control auth-input" placeholder="Ej: 🔧 o URL de imagen" @bind="formIconoUrl" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-slate-200 small">Descripción (máx 255 car.)</label>
+                        <textarea maxlength="255" class="form-control auth-input" rows="3" placeholder="Detalle de trabajos incluidos..." @bind="formDescripcion"></textarea>
+                    </div>
+
+                    @if (esEdicion)
+                    {
+                        <div class="form-check form-switch custom-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="switchActiva" @bind="formActiva">
+                            <label class="form-check-label text-slate-200 small ms-2" for="switchActiva">
+                                Categoría Activa
+                            </label>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-end gap-2 pt-2 border-top border-slate-subtle">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="CerrarModal" disabled="@guardando">
+                            Cancelar
+                        </button>
+                        <button class="btn btn-amber btn-sm fw-semibold" @onclick="GuardarCategoria" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(esEdicion ? "Guardar Cambios" : "Crear")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<CategoriaResponseDto> categorias = new();
+    private string filtroTexto = string.Empty;
+    private bool soloActivas = false;
+    private bool cargando = true;
+    private bool guardando = false;
+
+    // Estado del modal
+    private bool mostrarModal = false;
+    private bool esEdicion = false;
+    private int idSeleccionado = 0;
+    private string formNombre = string.Empty;
+    private string? formIconoUrl;
+    private string? formDescripcion;
+    private bool formActiva = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarCategorias();
+    }
+
+    private async Task CargarCategorias()
+    {
+        cargando = true;
+        categorias = await CategoriaService.ObtenerTodasAsync(soloActivas);
+        cargando = false;
+    }
+
+    private List<CategoriaResponseDto> categoriasFiltradas
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(filtroTexto))
+                return categorias;
+
+            var f = filtroTexto.Trim().ToLower();
+            return categorias.Where(c =>
+                (c.Nombre != null && c.Nombre.ToLower().Contains(f)) ||
+                (c.Descripcion != null && c.Descripcion.ToLower().Contains(f))
+            ).ToList();
+        }
+    }
+
+    private void AbrirModalCreacion()
+    {
+        esEdicion = false;
+        idSeleccionado = 0;
+        formNombre = string.Empty;
+        formIconoUrl = null;
+        formDescripcion = null;
+        formActiva = true;
+        mensajeError = null;
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEdicion(CategoriaResponseDto cat)
+    {
+        esEdicion = true;
+        idSeleccionado = cat.IdCategoria;
+        formNombre = cat.Nombre;
+        formIconoUrl = cat.IconoUrl;
+        formDescripcion = cat.Descripcion;
+        formActiva = cat.Activa;
+        mensajeError = null;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        mensajeError = null;
+    }
+
+    private async Task GuardarCategoria()
+    {
+        if (string.IsNullOrWhiteSpace(formNombre))
+        {
+            mensajeError = "El nombre de la categoría es obligatorio.";
+            return;
+        }
+
+        guardando = true;
+        mensajeError = null;
+
+        if (esEdicion)
+        {
+            var dto = new ActualizarCategoriaDto
+            {
+                Nombre = formNombre.Trim(),
+                Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
+                IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim(),
+                Activa = formActiva
+            };
+
+            var ok = await CategoriaService.ActualizarAsync(idSeleccionado, dto);
+            if (ok)
+            {
+                await CargarCategorias();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = "No se pudo actualizar. Verificá los datos o permisos.";
+            }
+        }
+        else
+        {
+            var dto = new CrearCategoriaDto
+            {
+                Nombre = formNombre.Trim(),
+                Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
+                IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim()
+            };
+
+            var ok = await CategoriaService.CrearAsync(dto);
+            if (ok)
+            {
+                await CargarCategorias();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = "No se pudo crear la categoría.";
+            }
+        }
+
+        guardando = false;
+    }
+
+    private async Task EliminarCategoria(int id)
+    {
+        var ok = await CategoriaService.EliminarAsync(id);
+        if (ok)
+        {
+            await CargarCategorias();
+        }
+    }
+}

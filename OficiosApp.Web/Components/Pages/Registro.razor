@@ -1,0 +1,127 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using OficiosApp.Shared.Dtos.Auth.Register.Request
+@using OficiosApp.Web.Services
+@inject IAuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Crear Cuenta — OficiosApp</PageTitle>
+
+<div class="auth-wrapper">
+    <div style="max-width: 620px; width: 100%;">
+        <div class="auth-card">
+            <div class="text-center">
+                <span class="auth-badge">Nueva Cuenta</span>
+                <h1 class="auth-title">Comenzá en OficiosApp</h1>
+                <p class="auth-subtitle">Registrate como cliente o profesional independiente</p>
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="auth-alert-error" role="alert">
+                    <span>@errorMessage</span>
+                </div>
+            }
+
+            <EditForm Model="registroModel" OnValidSubmit="HandleRegister">
+                <DataAnnotationsValidator />
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6">
+                        <label class="auth-label">Nombre</label>
+                        <InputText @bind-Value="registroModel.Nombre" class="form-control auth-input" placeholder="Juan" />
+                        <ValidationMessage For="@(() => registroModel.Nombre)" class="text-danger small mt-1" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="auth-label">Apellido</label>
+                        <InputText @bind-Value="registroModel.Apellido" class="form-control auth-input" placeholder="Pérez" />
+                        <ValidationMessage For="@(() => registroModel.Apellido)" class="text-danger small mt-1" />
+                    </div>
+                </div>
+
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-7">
+                        <label class="auth-label">Correo Electrónico</label>
+                        <InputText @bind-Value="registroModel.Email" class="form-control auth-input" type="email" placeholder="juanperez@correo.com" />
+                        <ValidationMessage For="@(() => registroModel.Email)" class="text-danger small mt-1" />
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label class="auth-label">Teléfono</label>
+                        <InputText @bind-Value="registroModel.Telefono" class="form-control auth-input" placeholder="+54 9 11 ..." />
+                        <ValidationMessage For="@(() => registroModel.Telefono)" class="text-danger small mt-1" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="auth-label">Contraseña</label>
+                    <InputText @bind-Value="registroModel.Password" type="password" class="form-control auth-input" placeholder="Mínimo 6 caracteres" />
+                    <ValidationMessage For="@(() => registroModel.Password)" class="text-danger small mt-1" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="auth-label">¿Qué rol vas a desempeñar?</label>
+                    <InputSelect @bind-Value="registroModel.IdRol" class="form-select auth-select">
+                        <option value="2">Quiero contratar servicios (Cliente)</option>
+                        <option value="3">Quiero ofrecer mis oficios (Profesional)</option>
+                    </InputSelect>
+                    <ValidationMessage For="@(() => registroModel.IdRol)" class="text-danger small mt-1" />
+                </div>
+
+                <button type="submit" class="btn-auth-primary w-100 d-flex justify-content-center align-items-center" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <span>Registrando perfil...</span>
+                    }
+                    else
+                    {
+                        <span>Crear mi cuenta</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="text-center mt-4 pt-2 border-top border-secondary border-opacity-25">
+                <span class="text-muted small">¿Ya tenés un usuario registrado?</span>
+                <a href="/login" class="auth-link ms-1 small">Iniciá sesión</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterRequestDto registroModel = new()
+    {
+        IdRol = 2
+    };
+
+    private string? errorMessage;
+    private bool isLoading;
+
+    private async Task HandleRegister()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var success = await AuthService.RegisterAsync(registroModel);
+            if (success)
+            {
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = "No se pudo completar el registro. Verificá si el correo ya se encuentra en uso.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "No se pudo conectar con el servidor.";
+            Console.WriteLine(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

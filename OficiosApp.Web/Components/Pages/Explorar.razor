@@ -1,0 +1,260 @@
+﻿@page "/explorar"
+@rendermode InteractiveServer
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using OficiosApp.Shared.Dtos.Profesionales
+@using OficiosApp.Web.Services
+@inject IProfesionalService ProfesionalService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+<PageTitle>Explorar Profesionales — OficiosApp</PageTitle>
+
+@if (esAdmin)
+{
+    <!-- Si es admin, no renderiza la grilla mientras navega a /admin -->
+    <div class="d-flex justify-content-center align-items-center vh-100">
+        <div class="spinner-border text-secondary" role="status"></div>
+    </div>
+}
+else
+{
+    <div class="container py-5">
+        <!-- Header Minimalista -->
+        <div class="text-center mb-5">
+            <h1 class="display-6 fw-bold text-white mb-2" style="letter-spacing: -0.02em;">Explorar Profesionales</h1>
+            <p class="text-secondary fw-light mx-auto" style="max-width: 500px;">
+                Encontrá mano de obra calificada, presupuestos transparentes y la solución exacta que buscás.
+            </p>
+        </div>
+
+        <!-- Buscador y Filtros Limpios -->
+        <div class="d-flex flex-column flex-md-row justify-content-center align-items-center gap-4 mb-5">
+            <div class="position-relative w-100" style="max-width: 450px;">
+                <span class="position-absolute top-50 translate-middle-y ms-3 text-secondary">🔍</span>
+                <input type="text"
+                       class="form-control bg-transparent text-white shadow-none ps-5 py-2 minimal-search"
+                       placeholder="Buscar por nombre, apellido o especialidad..."
+                       @bind="filtroBusqueda"
+                       @bind:event="oninput" />
+            </div>
+
+            <div class="form-check form-switch d-flex align-items-center gap-2 m-0 p-0 custom-minimal-switch">
+                <input class="form-check-input m-0" type="checkbox" role="switch" id="switchUrgencias" @bind="soloUrgencias">
+                <label class="form-check-label text-secondary small" for="switchUrgencias" style="cursor: pointer;">
+                    Solo urgencias ⚡
+                </label>
+            </div>
+        </div>
+
+        <!-- Estados de Carga y Vacío -->
+        @if (isLoading)
+        {
+            <div class="d-flex justify-content-center gap-2 py-5">
+                <div class="spinner-grow text-secondary spinner-grow-sm" role="status"></div>
+                <div class="spinner-grow text-secondary spinner-grow-sm" role="status"></div>
+                <div class="spinner-grow text-secondary spinner-grow-sm" role="status"></div>
+            </div>
+        }
+        else if (!profesionalesFiltrados.Any())
+        {
+            <div class="text-center py-5">
+                <div class="fs-1 mb-3 text-secondary opacity-50">🍃</div>
+                <h5 class="text-white fw-medium">No se encontraron profesionales</h5>
+                <p class="text-secondary small mb-4">Probá modificando los términos de búsqueda o los filtros.</p>
+                <button class="btn btn-minimal" @onclick="LimpiarFiltros">Restablecer filtros</button>
+            </div>
+        }
+        else
+        {
+            <!-- Grilla de Tarjetas Minimalistas -->
+            <div class="row g-4">
+                @foreach (var pro in profesionalesFiltrados)
+                {
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="minimal-card h-100 p-4 d-flex flex-column">
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="minimal-avatar">
+                                    @(pro.Nombre?.FirstOrDefault())@(pro.Apellido?.FirstOrDefault())
+                                </div>
+                                <div class="flex-grow-1 min-w-0">
+                                    <h6 class="text-white fw-bold mb-0 text-truncate">@pro.Nombre @pro.Apellido</h6>
+                                    @if (pro.DisponibleUrgencia)
+                                    {
+                                        <span class="text-warning small d-flex align-items-center gap-1">
+                                            <span class="urgency-dot"></span> Urgencias
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-secondary small" style="font-size: 0.75rem;">Disponibilidad Normal</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <p class="text-secondary small flex-grow-1 mb-4" style="line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">
+                                @(string.IsNullOrWhiteSpace(pro.Biografia) ? "Profesional certificado registrado en la plataforma listo para recibir solicitudes de trabajo." : pro.Biografia)
+                            </p>
+
+                            <div class="d-flex justify-content-between align-items-center pt-3 mt-auto border-top-subtle">
+                                <div>
+                                    <span class="d-block text-secondary" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">Tarifa base</span>
+                                    <span class="text-white fw-medium fs-6">
+                                        @(pro.TarifaBase.HasValue ? pro.TarifaBase.Value.ToString("C0") : "A convenir")
+                                    </span>
+                                </div>
+                                <a href="/profesional/@pro.IdUsuario" class="btn btn-minimal text-decoration-none">
+                                    Ver Perfil
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+}
+
+<style>
+    /* Ajustes específicos para diseño minimalista */
+    .minimal-search {
+        border: 1px solid #1e293b; /* Slate 800 */
+        border-radius: 50px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+        .minimal-search:focus {
+            border-color: #475569; /* Slate 600 */
+            box-shadow: 0 0 0 3px rgba(255,255,255,0.02);
+        }
+
+        .minimal-search::placeholder {
+            color: #475569;
+        }
+
+    .minimal-card {
+        background-color: #0b0f19; /* Fondo oscuro super sutil */
+        border: 1px solid #1e293b;
+        border-radius: 16px;
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+        .minimal-card:hover {
+            transform: translateY(-4px);
+            border-color: #334155; /* Borde levemente más claro al hover */
+        }
+
+    .minimal-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background-color: #1e293b;
+        color: #f8fafc;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+
+    .urgency-dot {
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        background-color: #f59e0b;
+        border-radius: 50%;
+        box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+    }
+
+    .border-top-subtle {
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .btn-minimal {
+        background-color: transparent;
+        color: #f8fafc;
+        border: 1px solid #334155;
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+        transition: all 0.2s ease;
+    }
+
+        .btn-minimal:hover {
+            background-color: #f8fafc;
+            color: #0b0f19;
+            border-color: #f8fafc;
+        }
+
+    /* Ajuste para el switch toggle */
+    .custom-minimal-switch .form-check-input {
+        background-color: #1e293b;
+        border-color: #334155;
+    }
+
+        .custom-minimal-switch .form-check-input:checked {
+            background-color: #f59e0b;
+            border-color: #f59e0b;
+        }
+
+        .custom-minimal-switch .form-check-input:focus {
+            box-shadow: none;
+            border-color: #475569;
+        }
+</style>
+
+@code {
+    private List<ProfesionalResponseDto> todosLosProfesionales = new();
+    private string filtroBusqueda = string.Empty;
+    private bool soloUrgencias;
+    private bool isLoading = true;
+    private bool esAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        var rolClaim = user.FindFirst("IdRol")?.Value;
+
+        if (rolClaim == "1")
+        {
+            esAdmin = true;
+            Navigation.NavigateTo("/admin");
+            return;
+        }
+
+        isLoading = true;
+        todosLosProfesionales = await ProfesionalService.ObtenerTodosAsync();
+        isLoading = false;
+    }
+
+    private List<ProfesionalResponseDto> profesionalesFiltrados
+    {
+        get
+        {
+            var resultado = todosLosProfesionales.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(filtroBusqueda))
+            {
+                var busqueda = filtroBusqueda.Trim().ToLower();
+                resultado = resultado.Where(p =>
+                    (p.Nombre != null && p.Nombre.ToLower().Contains(busqueda)) ||
+                    (p.Apellido != null && p.Apellido.ToLower().Contains(busqueda)) ||
+                    (p.Biografia != null && p.Biografia.ToLower().Contains(busqueda)));
+            }
+
+            if (soloUrgencias)
+            {
+                resultado = resultado.Where(p => p.DisponibleUrgencia);
+            }
+
+            return resultado.ToList();
+        }
+    }
+
+    private void LimpiarFiltros()
+    {
+        filtroBusqueda = string.Empty;
+        soloUrgencias = false;
+    }
+}

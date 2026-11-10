@@ -1,0 +1,341 @@
+﻿@page "/admin/zonas"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@using OficiosApp.Shared.Dtos.Zonas
+@using OficiosApp.Web.Services
+@inject IZonaService ZonaService
+@inject NavigationManager Navigation
+
+<PageTitle>Gestión de Zonas — Admin</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        @{
+            var idRol = context.User.FindFirst("IdRol")?.Value;
+            if (idRol != "1")
+            {
+                Navigation.NavigateTo("/explorar");
+            }
+        }
+
+        <div class="container py-4">
+            <!-- Header con Acción Principal -->
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+                <div>
+                    <span class="badge-admin">Módulo Admin</span>
+                    <h1 class="h2 fw-bold text-white mb-1">Zonas de Cobertura</h1>
+                    <p class="text-secondary small mb-0">Administrá las áreas geográficas y códigos postales donde operan los profesionales.</p>
+                </div>
+                <button class="btn btn-amber fw-semibold d-flex align-items-center gap-2" @onclick="AbrirModalCreacion">
+                    <span>➕</span>
+                    <span>Nueva Zona</span>
+                </button>
+            </div>
+
+            <!-- Filtros & Métricas -->
+            <div class="card bg-surface-card border-slate p-3 mb-4 rounded-3">
+                <div class="row g-3 align-items-center">
+                    <div class="col-12 col-md-6">
+                        <div class="input-group">
+                            <span class="input-group-text bg-input border-slate text-secondary">🔍</span>
+                            <input type="text"
+                                   class="form-control auth-input"
+                                   placeholder="Buscar por barrio, ciudad o código postal..."
+                                   @bind="filtroTexto"
+                                   @bind:event="oninput" />
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex justify-content-md-end gap-2 align-items-center">
+                        <div class="form-check form-switch custom-switch me-2">
+                            <input class="form-check-input" type="checkbox" id="switchSoloActivasZonas" @bind="soloActivas" @bind:after="CargarZonas">
+                            <label class="form-check-label text-slate-200 small ms-2" for="switchSoloActivasZonas">
+                                Solo activas
+                            </label>
+                        </div>
+                        <span class="badge bg-dark border border-secondary text-light px-3 py-2">
+                            Total: @zonasFiltradas.Count
+                        </span>
+                        <span class="badge bg-dark border border-success text-success px-3 py-2">
+                            Activas: @zonasFiltradas.Count(z => z.Activa)
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Datos -->
+            @if (cargando)
+            {
+                <div class="text-center py-5">
+                    <div class="spinner-border text-amber" role="status"></div>
+                    <p class="text-secondary mt-2 small">Cargando zonas de cobertura...</p>
+                </div>
+            }
+            else if (!zonasFiltradas.Any())
+            {
+                <div class="card bg-surface-card border-slate text-center py-5 px-3 rounded-3">
+                    <div class="fs-1 mb-2">📍</div>
+                    <h5 class="text-white fw-semibold">No se encontraron zonas</h5>
+                    <p class="text-secondary small mb-0">Podés registrar una nueva zona geográfica con el botón superior.</p>
+                </div>
+            }
+            else
+            {
+                <div class="card bg-surface-card border-slate rounded-3 overflow-hidden">
+                    <div class="table-responsive">
+                        <table class="table table-dark table-hover mb-0 align-middle">
+                            <thead class="border-slate-subtle">
+                                <tr class="text-secondary small text-uppercase">
+                                    <th style="width: 80px;">ID</th>
+                                    <th>Nombre de la Zona / Barrio</th>
+                                    <th style="width: 150px;">Código Postal</th>
+                                    <th style="width: 120px;" class="text-center">Estado</th>
+                                    <th style="width: 130px;" class="text-end">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var z in zonasFiltradas)
+                                {
+                                    <tr>
+                                        <td class="text-secondary font-monospace small">#@z.IdZona</td>
+                                        <td class="text-white fw-semibold">
+                                            <span class="me-2 text-secondary">📍</span>@z.Nombre
+                                        </td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(z.CodigoPostal))
+                                            {
+                                                <span class="badge bg-dark border border-secondary text-slate-200 font-monospace px-2 py-1">
+                                                    @z.CodigoPostal
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-secondary small">—</span>
+                                            }
+                                        </td>
+                                        <td class="text-center">
+                                            @if (z.Activa)
+                                            {
+                                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2 py-1">Activa</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 px-2 py-1">Inactiva</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-secondary" title="Editar" @onclick="() => AbrirModalEdicion(z)">
+                                                    ✏️
+                                                </button>
+                                                <button class="btn btn-outline-danger" title="Eliminar" @onclick="() => EliminarZona(z.IdZona)">
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Modal de Alta / Edición -->
+        @if (mostrarModal)
+        {
+            <div class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
+                <div class="modal-dialog-custom card bg-surface-card border-slate p-4 rounded-3 shadow-lg">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white fw-bold mb-0">
+                            @(esEdicion ? "Editar Zona" : "Nueva Zona")
+                        </h5>
+                        <button class="btn-close btn-close-white" @onclick="CerrarModal"></button>
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(mensajeError))
+                    {
+                        <div class="alert alert-danger py-2 small mb-3">@mensajeError</div>
+                    }
+
+                    <div class="mb-3">
+                        <label class="form-label text-slate-200 small">Nombre de la Zona / Ciudad / Barrio *</label>
+                        <input type="text"
+                               maxlength="100"
+                               class="form-control auth-input"
+                               placeholder="Ej: Centro, Villa Santillán, Zona Norte"
+                               @bind="formNombre" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label text-slate-200 small">Código Postal (opcional, máx 10)</label>
+                        <input type="text"
+                               maxlength="10"
+                               class="form-control auth-input font-monospace"
+                               placeholder="Ej: 6300"
+                               @bind="formCodigoPostal"
+                               style="max-width: 150px;" />
+                    </div>
+
+                    @if (esEdicion)
+                    {
+                        <div class="form-check form-switch custom-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="switchZonaActiva" @bind="formActiva">
+                            <label class="form-check-label text-slate-200 small ms-2" for="switchZonaActiva">
+                                Zona Activa en la Plataforma
+                            </label>
+                        </div>
+                    }
+
+                    <div class="d-flex justify-content-end gap-2 pt-2 border-top border-slate-subtle">
+                        <button class="btn btn-outline-secondary btn-sm" @onclick="CerrarModal" disabled="@guardando">
+                            Cancelar
+                        </button>
+                        <button class="btn btn-amber btn-sm fw-semibold" @onclick="GuardarZona" disabled="@guardando">
+                            @if (guardando)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            @(esEdicion ? "Guardar Cambios" : "Crear Zona")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </Authorized>
+</AuthorizeView>
+
+@code {
+    private List<ZonaResponseDto> zonas = new();
+    private string filtroTexto = string.Empty;
+    private bool soloActivas = false;
+    private bool cargando = true;
+    private bool guardando = false;
+
+    // Estado del modal
+    private bool mostrarModal = false;
+    private bool esEdicion = false;
+    private int idSeleccionado = 0;
+    private string formNombre = string.Empty;
+    private string? formCodigoPostal;
+    private bool formActiva = true;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarZonas();
+    }
+
+    private async Task CargarZonas()
+    {
+        cargando = true;
+        zonas = await ZonaService.ObtenerTodasAsync(soloActivas);
+        cargando = false;
+    }
+
+    private List<ZonaResponseDto> zonasFiltradas
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(filtroTexto))
+                return zonas;
+
+            var f = filtroTexto.Trim().ToLower();
+            return zonas.Where(z =>
+                (z.Nombre != null && z.Nombre.ToLower().Contains(f)) ||
+                (z.CodigoPostal != null && z.CodigoPostal.ToLower().Contains(f))
+            ).ToList();
+        }
+    }
+
+    private void AbrirModalCreacion()
+    {
+        esEdicion = false;
+        idSeleccionado = 0;
+        formNombre = string.Empty;
+        formCodigoPostal = null;
+        formActiva = true;
+        mensajeError = null;
+        mostrarModal = true;
+    }
+
+    private void AbrirModalEdicion(ZonaResponseDto zona)
+    {
+        esEdicion = true;
+        idSeleccionado = zona.IdZona;
+        formNombre = zona.Nombre;
+        formCodigoPostal = zona.CodigoPostal;
+        formActiva = zona.Activa;
+        mensajeError = null;
+        mostrarModal = true;
+    }
+
+    private void CerrarModal()
+    {
+        mostrarModal = false;
+        mensajeError = null;
+    }
+
+    private async Task GuardarZona()
+    {
+        if (string.IsNullOrWhiteSpace(formNombre))
+        {
+            mensajeError = "El nombre de la zona es obligatorio.";
+            return;
+        }
+
+        guardando = true;
+        mensajeError = null;
+
+        if (esEdicion)
+        {
+            var dto = new ActualizarZonaDto
+            {
+                Nombre = formNombre.Trim(),
+                CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim(),
+                Activa = formActiva
+            };
+
+            var ok = await ZonaService.ActualizarAsync(idSeleccionado, dto);
+            if (ok)
+            {
+                await CargarZonas();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = "No se pudo actualizar la zona. Verificá los datos o permisos.";
+            }
+        }
+        else
+        {
+            var dto = new CrearZonaDto
+            {
+                Nombre = formNombre.Trim(),
+                CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim()
+            };
+
+            var ok = await ZonaService.CrearAsync(dto);
+            if (ok)
+            {
+                await CargarZonas();
+                CerrarModal();
+            }
+            else
+            {
+                mensajeError = "No se pudo crear la zona.";
+            }
+        }
+
+        guardando = false;
+    }
+
+    private async Task EliminarZona(int id)
+    {
+        var ok = await ZonaService.EliminarAsync(id);
+        if (ok)
+        {
+            await CargarZonas();
+        }
+    }
+}
