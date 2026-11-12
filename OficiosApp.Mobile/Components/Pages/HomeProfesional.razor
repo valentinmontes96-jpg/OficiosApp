@@ -1,0 +1,377 @@
+@page "/home-profesional"
+@using OficiosApp.Shared.Dtos.Citas.Response
+@using OficiosApp.Shared.Dtos.Profesionales
+@using OficiosApp.Mobile.Services
+@inject IAuthService AuthService
+@inject IProfesionalMobileService ProfesionalService
+@inject ICitaMobileService CitaService
+@inject NavigationManager Nav
+
+<div class="h-full flex flex-col bg-gray-100">
+    <!-- Header superior Profesional -->
+    <header class="bg-slate-900 text-white px-4 py-3 shadow-md z-10 flex items-center justify-between">
+        <div>
+            <div class="flex items-center space-x-2">
+                <span class="text-xl">🧰</span>
+                <h1 class="text-lg font-bold tracking-tight">OficiosApp</h1>
+                <span class="text-[10px] uppercase tracking-wider bg-amber-500 text-slate-950 px-2 py-0.5 rounded-full font-extrabold">Profesional</span>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(nombreUsuario))
+            {
+                <p class="text-xs text-slate-300 mt-0.5">Hola, @nombreUsuario</p>
+            }
+        </div>
+
+        <button type="button"
+                @onclick="CerrarSesion"
+                class="p-2 text-white hover:bg-slate-800 active:bg-slate-700 rounded-lg transition-colors flex items-center justify-center"
+                title="Cerrar sesión">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+        </button>
+    </header>
+
+    <!-- Contenido desplazable -->
+    <main class="p-4 flex-1 overflow-y-auto space-y-5">
+
+        <!-- 1. Switch de Guardia / Disponibilidad 24/7 -->
+        <div class="rounded-2xl p-4 shadow-sm border transition-all @(disponibleUrgencia ? "bg-emerald-600 text-white border-emerald-500" : "bg-white text-gray-800 border-gray-200")">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="text-2xl">@(disponibleUrgencia ? "🚨" : "🌙")</div>
+                    <div>
+                        <span class="block text-sm font-extrabold">
+                            @(disponibleUrgencia ? "Guardia 24/7 Activa" : "Guardia 24/7 Inactiva")
+                        </span>
+                        <span class="block text-xs @(disponibleUrgencia ? "text-emerald-100" : "text-gray-500")">
+                            @(disponibleUrgencia
+                                ? "Visible para clientes con urgencias inmediatas"
+                                : "Activá para recibir solicitudes de urgencia")
+                        </span>
+                    </div>
+                </div>
+
+                <button type="button"
+                        disabled="@actualizandoGuardia"
+                        @onclick="CambiarDisponibilidadUrgencia"
+                        class="relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none @(disponibleUrgencia ? "bg-emerald-900" : "bg-gray-300") disabled:opacity-60"
+                        style="width: 52px;">
+                    <span class="inline-block h-6 w-6 transform rounded-full bg-white shadow transition duration-200 ease-in-out @(disponibleUrgencia ? "translate-x-6" : "translate-x-0")"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. Resumen de Citas (Pendientes / Hoy / Completadas) -->
+        <div class="grid grid-cols-3 gap-2.5">
+            <div @onclick='() => filtroActivo = "pendientes"'
+                 class="bg-white p-3 rounded-xl shadow-sm border cursor-pointer transition-all @(filtroActivo == "pendientes" ? "border-amber-500 ring-2 ring-amber-100" : "border-gray-200")">
+                <span class="text-xs font-semibold text-amber-600 block">Pendientes</span>
+                <span class="text-2xl font-black text-gray-900">@CitasPendientes.Count</span>
+                <span class="text-[10px] text-gray-400 block">Por confirmar</span>
+            </div>
+
+            <div @onclick='() => filtroActivo = "confirmadas"'
+                 class="bg-white p-3 rounded-xl shadow-sm border cursor-pointer transition-all @(filtroActivo == "confirmadas" ? "border-blue-500 ring-2 ring-blue-100" : "border-gray-200")">
+                <span class="text-xs font-semibold text-blue-600 block">Hoy / Agenda</span>
+                <span class="text-2xl font-black text-gray-900">@CitasConfirmadas.Count</span>
+                <span class="text-[10px] text-gray-400 block">@CitasDeHoyCount para hoy</span>
+            </div>
+
+            <div @onclick='() => filtroActivo = "completadas"'
+                 class="bg-white p-3 rounded-xl shadow-sm border cursor-pointer transition-all @(filtroActivo == "completadas" ? "border-emerald-500 ring-2 ring-emerald-100" : "border-gray-200")">
+                <span class="text-xs font-semibold text-emerald-600 block">Finalizadas</span>
+                <span class="text-2xl font-black text-gray-900">@CitasCompletadas.Count</span>
+                <span class="text-[10px] text-gray-400 block">Completadas</span>
+            </div>
+        </div>
+
+        <!-- 3. Solicitudes Entrantes / Próximas Citas -->
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="font-bold text-gray-800 text-base">
+                    @(filtroActivo == "pendientes" ? "Solicitudes Entrantes" :
+                      filtroActivo == "confirmadas" ? "Próximas Citas Confirmadas" :
+                      "Trabajos Finalizados")
+                </h2>
+                <button type="button"
+                        @onclick="CargarDatosAsync"
+                        class="text-xs text-blue-600 font-semibold hover:underline">
+                    Actualizar
+                </button>
+            </div>
+
+            @if (cargando)
+            {
+                <div class="flex flex-col justify-center items-center py-10 bg-white rounded-2xl border border-gray-200">
+                    <div class="animate-spin rounded-full h-7 w-7 border-b-2 border-slate-800 mb-2"></div>
+                    <span class="text-gray-500 text-xs font-medium">Cargando tus solicitudes...</span>
+                </div>
+            }
+            else if (CitasMostradas.Count == 0)
+            {
+                <div class="bg-white p-6 rounded-2xl text-center shadow-sm border border-gray-200">
+                    <span class="text-3xl block mb-2">📭</span>
+                    <p class="text-gray-600 text-sm font-medium">
+                        @(filtroActivo == "pendientes"
+                            ? "No tenés solicitudes pendientes de confirmar."
+                            : filtroActivo == "confirmadas"
+                                ? "No tenés citas confirmadas en agenda."
+                                : "Aún no registrás trabajos finalizados.")
+                    </p>
+                </div>
+            }
+            else
+            {
+                <div class="space-y-3">
+                    @foreach (var cita in CitasMostradas)
+                    {
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-2.5">
+                            <div class="flex items-center justify-between">
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold @ObtenerClaseBadgeEstado(cita.IdEstadoCita)">
+                                    @ObtenerNombreEstado(cita.IdEstadoCita)
+                                </span>
+                                <span class="text-xs text-gray-500 font-medium">
+                                    📅 @cita.FechaServicioPactada.ToString("dd/MM/yyyy HH:mm")
+                                </span>
+                            </div>
+
+                            <p class="text-sm font-bold text-gray-800 leading-snug">
+                                @cita.DescripcionProblema
+                            </p>
+
+                            <p class="text-xs text-gray-600 flex items-center gap-1">
+                                <span>📍</span>
+                                <span>@cita.DireccionServicio</span>
+                            </p>
+
+                            @if (cita.IdEstadoCita == 1)
+                            {
+                                <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                                    <button type="button"
+                                            disabled="@procesandoCita"
+                                            @onclick="() => AceptarCita(cita.IdCita)"
+                                            class="py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all disabled:opacity-50">
+                                        ✓ Aceptar
+                                    </button>
+                                    <button type="button"
+                                            disabled="@procesandoCita"
+                                            @onclick="() => RechazarCita(cita.IdCita)"
+                                            class="py-2 bg-red-50 hover:bg-red-100 active:scale-95 text-red-600 border border-red-200 font-bold rounded-lg text-xs transition-all disabled:opacity-50">
+                                        ✕ Rechazar
+                                    </button>
+                                </div>
+                            }
+                            else if (cita.IdEstadoCita == 2)
+                            {
+                                <div class="pt-2 border-t border-gray-100 flex justify-end">
+                                    <button type="button"
+                                            disabled="@procesandoCita"
+                                            @onclick="() => CompletarCita(cita.IdCita)"
+                                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-lg text-xs transition-all disabled:opacity-50">
+                                        ✓ Marcar como Completada
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- 4. Accesos a Configuración Profesional -->
+        <div class="pb-6">
+            <h2 class="font-bold text-gray-800 text-base mb-3">Configuración Profesional</h2>
+
+            <div class="grid grid-cols-2 gap-3">
+                <!-- Mi Perfil y Tarifa -->
+                <button type="button"
+                        @onclick='() => Nav.NavigateTo("/perfil-profesional")'
+                        class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[95px]">
+                    <div class="text-2xl mb-1">👤</div>
+                    <div>
+                        <span class="block text-sm font-bold text-gray-800 leading-tight">Mi Perfil</span>
+                        <span class="text-[11px] text-gray-500">
+                            @(perfil?.TarifaBase.HasValue == true ? $"Tarifa base: ${perfil.TarifaBase:N0}" : "Biografía y tarifa base")
+                        </span>
+                    </div>
+                </button>
+
+                <!-- Mis Categorías -->
+                <button type="button"
+                        @onclick='() => Nav.NavigateTo("/mis-categorias")'
+                        class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[95px]">
+                    <div class="text-2xl mb-1">🛠️</div>
+                    <div>
+                        <span class="block text-sm font-bold text-gray-800 leading-tight">Mis Categorías</span>
+                        <span class="text-[11px] text-gray-500">
+                            @(perfil != null ? $"{perfil.IdsCategorias.Count} oficios activos" : "Oficios que ofrecés")
+                        </span>
+                    </div>
+                </button>
+
+                <!-- Zonas de Cobertura -->
+                <button type="button"
+                        @onclick='() => Nav.NavigateTo("/mis-zonas")'
+                        class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[95px]">
+                    <div class="text-2xl mb-1">📍</div>
+                    <div>
+                        <span class="block text-sm font-bold text-gray-800 leading-tight">Mis Zonas</span>
+                        <span class="text-[11px] text-gray-500">
+                            @(perfil != null ? $"{perfil.IdsZonas.Count} zonas asignadas" : "Barrios y cobertura")
+                        </span>
+                    </div>
+                </button>
+
+                <!-- Horarios de Atención -->
+                <button type="button"
+                        @onclick='() => Nav.NavigateTo("/mis-horarios")'
+                        class="bg-white p-3.5 rounded-xl shadow-sm border border-gray-200 hover:border-blue-300 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[95px]">
+                    <div class="text-2xl mb-1">🕒</div>
+                    <div>
+                        <span class="block text-sm font-bold text-gray-800 leading-tight">Mis Horarios</span>
+                        <span class="text-[11px] text-gray-500">Días y franjas de atención</span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+    </main>
+</div>
+
+@code {
+    private string? nombreUsuario;
+    private int? idUsuario;
+    private ProfesionalResponseDto? perfil;
+    private List<CitaResponseDto> citas = new();
+
+    private bool disponibleUrgencia = false;
+    private bool actualizandoGuardia = false;
+    private bool cargando = true;
+    private bool procesandoCita = false;
+    private string filtroActivo = "pendientes";
+
+    private List<CitaResponseDto> CitasPendientes =>
+        citas.Where(c => c.IdEstadoCita == 1).ToList();
+
+    private List<CitaResponseDto> CitasConfirmadas =>
+        citas.Where(c => c.IdEstadoCita == 2).ToList();
+
+    private List<CitaResponseDto> CitasCompletadas =>
+        citas.Where(c => c.IdEstadoCita == 4).ToList();
+
+    private int CitasDeHoyCount =>
+        CitasConfirmadas.Count(c => c.FechaServicioPactada.Date == DateTime.Today);
+
+    private List<CitaResponseDto> CitasMostradas => filtroActivo switch
+    {
+        "confirmadas" => CitasConfirmadas,
+        "completadas" => CitasCompletadas,
+        _ => CitasPendientes
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var idRol = await AuthService.ObtenerIdRolAsync();
+        if (idRol == 2)
+        {
+            Nav.NavigateTo("/home-cliente", replace: true);
+            return;
+        }
+
+        nombreUsuario = await AuthService.ObtenerNombreUsuarioAsync();
+        idUsuario = await AuthService.ObtenerIdUsuarioAsync();
+
+        await CargarDatosAsync();
+    }
+
+    private async Task CargarDatosAsync()
+    {
+        cargando = true;
+
+        var tareaCitas = CitaService.ObtenerMisCitasProfesionalAsync();
+
+        if (idUsuario.HasValue)
+        {
+            perfil = await ProfesionalService.ObtenerPerfilAsync(idUsuario.Value);
+            if (perfil != null)
+            {
+                disponibleUrgencia = perfil.DisponibleUrgencia;
+            }
+        }
+
+        citas = await tareaCitas;
+        cargando = false;
+    }
+
+    private async Task CambiarDisponibilidadUrgencia()
+    {
+        actualizandoGuardia = true;
+        var nuevoEstado = !disponibleUrgencia;
+
+        var actualizado = await ProfesionalService.ActualizarPerfilAsync(new ActualizarProfesionalDto
+        {
+            Biografia = perfil?.Biografia,
+            TarifaBase = perfil?.TarifaBase,
+            DisponibleUrgencia = nuevoEstado
+        });
+
+        if (actualizado != null)
+        {
+            perfil = actualizado;
+            disponibleUrgencia = actualizado.DisponibleUrgencia;
+        }
+        else
+        {
+            // Si aún no tiene registro extendido o falló la red, actualizamos visualmente o revertimos
+            disponibleUrgencia = nuevoEstado;
+        }
+
+        actualizandoGuardia = false;
+    }
+
+    private Task AceptarCita(int idCita) =>
+        CambiarEstadoCita(idCita, 2, "Cita confirmada por el profesional.");
+
+    private Task RechazarCita(int idCita) =>
+        CambiarEstadoCita(idCita, 3, "Solicitud rechazada por el profesional.");
+
+    private Task CompletarCita(int idCita) =>
+        CambiarEstadoCita(idCita, 4, "Trabajo finalizado por el profesional.");
+
+    private async Task CambiarEstadoCita(int idCita, int nuevoEstadoId, string observaciones)
+    {
+        procesandoCita = true;
+        var exito = await CitaService.CambiarEstadoCitaAsync(idCita, nuevoEstadoId, observaciones);
+        if (exito)
+        {
+            citas = await CitaService.ObtenerMisCitasProfesionalAsync();
+        }
+        procesandoCita = false;
+    }
+
+    private async Task CerrarSesion()
+    {
+        await AuthService.LogoutAsync();
+        Nav.NavigateTo("/", replace: true);
+    }
+
+    private static string ObtenerNombreEstado(int idEstado) => idEstado switch
+    {
+        1 => "Pendiente",
+        2 => "Confirmada",
+        3 => "Cancelada",
+        4 => "Completada",
+        _ => $"Estado #{idEstado}"
+    };
+
+    private static string ObtenerClaseBadgeEstado(int idEstado) => idEstado switch
+    {
+        1 => "bg-amber-100 text-amber-800",
+        2 => "bg-blue-100 text-blue-800",
+        3 => "bg-red-100 text-red-700",
+        4 => "bg-emerald-100 text-emerald-800",
+        _ => "bg-gray-100 text-gray-700"
+    };
+}
+

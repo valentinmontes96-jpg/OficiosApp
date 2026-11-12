@@ -1,12 +1,18 @@
 ﻿@page "/admin/categorias"
 @attribute [Authorize]
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using OficiosApp.Shared.Dtos.Categoria
 @using OficiosApp.Web.Services
+@using MudBlazor
 @inject ICategoriaService CategoriaService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<PageTitle>Gestión de Categorías — Admin</PageTitle>
+<PageTitle>Gestión de Categorías — OficiosApp</PageTitle>
+
+<MudThemeProvider Theme="AdminTheme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudSnackbarProvider />
 
 <AuthorizeView>
     <Authorized>
@@ -18,194 +24,427 @@
             }
         }
 
-        <div class="container py-4">
-            <!-- Encabezado -->
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-                <div>
-                    <span class="badge-admin">Módulo Admin</span>
-                    <h1 class="h2 fw-bold text-white mb-1">Categorías & Oficios</h1>
-                    <p class="text-secondary small mb-0">Administrá los rubros de trabajo del sistema.</p>
-                </div>
-                <button class="btn btn-amber fw-semibold d-flex align-items-center gap-2" @onclick="AbrirModalCreacion">
-                    <span>➕</span>
-                    <span>Nueva Categoría</span>
-                </button>
-            </div>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16 minimal-bg">
 
-            <!-- Filtros -->
-            <div class="card bg-surface-card border-slate p-3 mb-4 rounded-3">
-                <div class="row g-3 align-items-center">
-                    <div class="col-12 col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-text bg-input border-slate text-secondary">🔍</span>
-                            <input type="text"
-                                   class="form-control auth-input"
-                                   placeholder="Buscar por nombre o descripción..."
-                                   @bind="filtroTexto"
-                                   @bind:event="oninput" />
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-6 d-flex justify-content-md-end gap-2 align-items-center">
-                        <div class="form-check form-switch custom-switch me-2">
-                            <input class="form-check-input" type="checkbox" id="switchSoloActivas" @bind="soloActivas" @bind:after="CargarCategorias">
-                            <label class="form-check-label text-slate-200 small ms-2" for="switchSoloActivas">
-                                Solo activas
-                            </label>
-                        </div>
-                        <span class="badge bg-dark border border-secondary text-light px-3 py-2">
-                            Total: @categoriasFiltradas.Count
-                        </span>
-                    </div>
-                </div>
-            </div>
+            <!-- Encabezado y Acción Principal -->
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.End" Class="mb-6 flex-wrap gap-4">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.overline" Style="color: #f59e0b; letter-spacing: 2px; font-weight: 600;">
+                        Módulo Admin
+                    </MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; letter-spacing: -1px; color: #f8fafc;">
+                        Categorías & Oficios
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Style="color: #94a3b8; font-weight: 300;">
+                        Administrá los rubros de trabajo y servicios disponibles en el sistema.
+                    </MudText>
+                </MudStack>
 
-            <!-- Tabla -->
-            @if (cargando)
-            {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-amber" role="status"></div>
-                    <p class="text-secondary mt-2 small">Cargando categorías...</p>
-                </div>
-            }
-            else if (!categoriasFiltradas.Any())
-            {
-                <div class="card bg-surface-card border-slate text-center py-5 px-3 rounded-3">
-                    <div class="fs-1 mb-2">🏷️</div>
-                    <h5 class="text-white fw-semibold">No se encontraron categorías</h5>
-                    <p class="text-secondary small mb-0">Podés agregar una nueva usando el botón superior.</p>
-                </div>
-            }
-            else
-            {
-                <div class="card bg-surface-card border-slate rounded-3 overflow-hidden">
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover mb-0 align-middle">
-                            <thead class="border-slate-subtle">
-                                <tr class="text-secondary small text-uppercase">
-                                    <th style="width: 70px;">ID</th>
-                                    <th style="width: 80px;">Ícono</th>
-                                    <th>Nombre</th>
-                                    <th>Descripción</th>
-                                    <th style="width: 110px;" class="text-center">Estado</th>
-                                    <th style="width: 130px;" class="text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var cat in categoriasFiltradas)
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Rounded.Add"
+                           OnClick="AbrirModalCreacion"
+                           Class="px-5 py-2"
+                           Style="border-radius: 10px; font-weight: 700; text-transform: none; color: #05080f;">
+                    Nueva Categoría
+                </MudButton>
+            </MudStack>
+
+            <!-- Barra de Filtros y Métricas -->
+            <MudPaper Class="pa-4 mb-6 filter-bar rounded-xl" Elevation="0" Outlined="true">
+                <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="filtroTexto"
+                                      Placeholder="Buscar por nombre, descripción o #ID..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Rounded.Search"
+                                      Clearable="true"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6" Class="d-flex justify-end align-center flex-wrap gap-3">
+                        <MudSwitch T="bool"
+                                   Value="soloActivas"
+                                   ValueChanged="OnSoloActivasChanged"
+                                   Color="Color.Success"
+                                   Label="Solo activas"
+                                   Style="color: #e2e8f0;" />
+
+                        <MudChip T="string" Style="background-color: #0f172a; border: 1px solid #334155; color: #cbd5e1;">
+                            Total: <strong class="ms-1" style="color: #ffffff;">@categoriasFiltradas.Count</strong>
+                        </MudChip>
+
+                        <MudChip T="string" Style="background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.25); color: #34d399;">
+                            Activas: <strong class="ms-1">@categoriasFiltradas.Count(c => c.Activa)</strong>
+                        </MudChip>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <!-- Tabla de Categorías -->
+            <MudTable Items="@categoriasFiltradas"
+                      Dense="true"
+                      Hover="true"
+                      Striped="false"
+                      Loading="@cargando"
+                      LoadingProgressColor="Color.Warning"
+                      Elevation="0"
+                      Outlined="true"
+                      Class="categories-table rounded-xl overflow-hidden"
+                      RowsPerPage="15">
+                <HeaderContent>
+                    <MudTh Style="width: 90px;">
+                        <MudTableSortLabel SortBy="new Func<CategoriaResponseDto, object>(x => x.IdCategoria)">ID</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="width: 80px;">Ícono</MudTh>
+                    <MudTh Style="width: 240px;">
+                        <MudTableSortLabel SortBy="new Func<CategoriaResponseDto, object>(x => x.Nombre ?? string.Empty)">Nombre</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh>Descripción</MudTh>
+                    <MudTh Style="width: 130px; text-align: center;">
+                        <MudTableSortLabel SortBy="new Func<CategoriaResponseDto, object>(x => x.Activa)">Estado</MudTableSortLabel>
+                    </MudTh>
+                    <MudTh Style="width: 130px; text-align: right;">Acciones</MudTh>
+                </HeaderContent>
+
+                <RowTemplate Context="cat">
+                    <MudTd DataLabel="ID">
+                        <span class="id-badge">#@cat.IdCategoria</span>
+                    </MudTd>
+
+                    <MudTd DataLabel="Ícono">
+                        <MudAvatar Size="Size.Small" Style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #475569; color: #f59e0b;">
+                            @if (!string.IsNullOrWhiteSpace(cat.IconoUrl))
+                            {
+                                @if (cat.IconoUrl.StartsWith("http") || cat.IconoUrl.StartsWith("/"))
                                 {
-                                    <tr>
-                                        <td class="text-secondary font-monospace small">#@cat.IdCategoria</td>
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(cat.IconoUrl))
-                                            {
-                                                @if (cat.IconoUrl.StartsWith("http") || cat.IconoUrl.StartsWith("/"))
-                                                {
-                                                    <img src="@cat.IconoUrl" alt="@cat.Nombre" style="width: 28px; height: 28px; object-fit: contain;" />
-                                                }
-                                                else
-                                                {
-                                                    <span class="fs-5">@cat.IconoUrl</span>
-                                                }
-                                            }
-                                            else
-                                            {
-                                                <span class="fs-5 text-secondary">🛠️</span>
-                                            }
-                                        </td>
-                                        <td class="text-white fw-semibold">@cat.Nombre</td>
-                                        <td class="text-secondary small">
-                                            @(string.IsNullOrWhiteSpace(cat.Descripcion) ? "—" : cat.Descripcion)
-                                        </td>
-                                        <td class="text-center">
-                                            @if (cat.Activa)
-                                            {
-                                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2 py-1">Activa</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 px-2 py-1">Inactiva</span>
-                                            }
-                                        </td>
-                                        <td class="text-end">
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-secondary" title="Editar" @onclick="() => AbrirModalEdicion(cat)">
-                                                    ✏️
-                                                </button>
-                                                <button class="btn btn-outline-danger" title="Eliminar" @onclick="() => EliminarCategoria(cat.IdCategoria)">
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                    <MudImage Src="@cat.IconoUrl" Alt="@cat.Nombre" Width="20" Height="20" ObjectFit="ObjectFit.Contain" />
                                 }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            }
-        </div>
+                                else
+                                {
+                                    <span style="font-size: 1rem;">@cat.IconoUrl</span>
+                                }
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Rounded.Handyman" Size="Size.Small" />
+                            }
+                        </MudAvatar>
+                    </MudTd>
 
-        <!-- Modal Crear / Editar -->
-        @if (mostrarModal)
-        {
-            <div class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
-                <div class="modal-dialog-custom card bg-surface-card border-slate p-4 rounded-3 shadow-lg">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white fw-bold mb-0">
-                            @(esEdicion ? "Editar Categoría" : "Nueva Categoría")
-                        </h5>
-                        <button class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                    </div>
+                    <MudTd DataLabel="Nombre">
+                        <MudText Typo="Typo.body2" Style="font-weight: 700; color: #f8fafc;">
+                            @cat.Nombre
+                        </MudText>
+                    </MudTd>
 
+                    <MudTd DataLabel="Descripción">
+                        <MudText Typo="Typo.body2" Style="color: #cbd5e1;">
+                            @(string.IsNullOrWhiteSpace(cat.Descripcion) ? "—" : cat.Descripcion)
+                        </MudText>
+                    </MudTd>
+
+                    <MudTd DataLabel="Estado" Style="text-align: center;">
+                        @if (cat.Activa)
+                        {
+                            <MudChip T="string" Size="Size.Small" Style="background-color: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); font-weight: 600;">
+                                Activa
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Style="background-color: rgba(239, 68, 68, 0.12); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-weight: 600;">
+                                Inactiva
+                            </MudChip>
+                        }
+                    </MudTd>
+
+                    <MudTd DataLabel="Acciones" Style="text-align: right;">
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Rounded.Edit"
+                                           Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Class="action-btn"
+                                           Title="Editar categoría"
+                                           OnClick="@(() => AbrirModalEdicion(cat))" />
+                            <MudIconButton Icon="@Icons.Material.Rounded.DeleteOutline"
+                                           Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           Class="danger-btn"
+                                           Title="Eliminar categoría"
+                                           OnClick="@(() => EliminarCategoria(cat.IdCategoria))" />
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+
+                <NoRecordsContent>
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-12">
+                        <MudIcon Icon="@Icons.Material.Rounded.Category" Style="color: #475569; font-size: 3.5rem;" />
+                        <MudText Typo="Typo.h6" Style="color: #f8fafc;" Class="mt-2">No se encontraron categorías</MudText>
+                        <MudText Typo="Typo.body2" Style="color: #94a3b8;">Podés registrar un nuevo rubro usando el botón superior.</MudText>
+                    </MudStack>
+                </NoRecordsContent>
+
+                <PagerContent>
+                    <MudTablePager PageSizeOptions="new int[] { 15, 30, 50, 100 }"
+                                   RowsPerPageString="Categorías por página:"
+                                   InfoFormat="{first_item}-{last_item} de {all_items}" />
+                </PagerContent>
+            </MudTable>
+
+        </MudContainer>
+
+        <!-- Modal con MudOverlay (Sin bloqueo de circuito y con alto contraste) -->
+        <MudOverlay Visible="mostrarModal" DarkBackground="true" Absolute="false" ZIndex="1300">
+            <MudPaper Class="pa-6 modal-paper rounded-xl" Outlined="true" Elevation="24" Style="width: 92vw; max-width: 520px;">
+
+                <!-- Encabezado del Modal -->
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="pb-4 mb-5" Style="border-bottom: 1px solid #334155;">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@(esEdicion ? Icons.Material.Rounded.EditNote : Icons.Material.Rounded.AddBox)" Style="color: #f59e0b;" />
+                        <MudText Typo="Typo.h6" Style="font-weight: 700; color: #f8fafc;">
+                            @(esEdicion ? $"Editar Categoría #{idSeleccionado}" : "Nueva Categoría")
+                        </MudText>
+                    </MudStack>
+                    <MudIconButton Icon="@Icons.Material.Rounded.Close" Size="Size.Small" OnClick="CerrarModal" Style="color: #cbd5e1;" />
+                </MudStack>
+
+                <!-- Cuerpo del Modal -->
+                <MudStack Spacing="4" Class="mb-6 text-start">
                     @if (!string.IsNullOrEmpty(mensajeError))
                     {
-                        <div class="alert alert-danger py-2 small mb-3">@mensajeError</div>
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Style="border-radius: 8px;">
+                            @mensajeError
+                        </MudAlert>
                     }
 
-                    <div class="mb-3">
-                        <label class="form-label text-slate-200 small">Nombre * (máx 80 car.)</label>
-                        <input type="text" maxlength="80" class="form-control auth-input" placeholder="Ej: Plomería" @bind="formNombre" />
-                    </div>
+                    <MudTextField @bind-Value="formNombre"
+                                  Label="Nombre * (máx 80 car.)"
+                                  Placeholder="Ej: Plomería, Electricidad, Gasista"
+                                  MaxLength="80"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.Label" />
 
-                    <div class="mb-3">
-                        <label class="form-label text-slate-200 small">Ícono / Emoji (máx 255 car.)</label>
-                        <input type="text" maxlength="255" class="form-control auth-input" placeholder="Ej: 🔧 o URL de imagen" @bind="formIconoUrl" />
-                    </div>
+                    <MudTextField @bind-Value="formIconoUrl"
+                                  Label="Ícono / Emoji (máx 255 car.)"
+                                  Placeholder="Ej: 🔧 o URL de imagen"
+                                  MaxLength="255"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.EmojiEmotions" />
 
-                    <div class="mb-3">
-                        <label class="form-label text-slate-200 small">Descripción (máx 255 car.)</label>
-                        <textarea maxlength="255" class="form-control auth-input" rows="3" placeholder="Detalle de trabajos incluidos..." @bind="formDescripcion"></textarea>
-                    </div>
+                    <MudTextField @bind-Value="formDescripcion"
+                                  Label="Descripción (máx 255 car.)"
+                                  Placeholder="Detalle de trabajos incluidos en este rubro..."
+                                  MaxLength="255"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
 
                     @if (esEdicion)
                     {
-                        <div class="form-check form-switch custom-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="switchActiva" @bind="formActiva">
-                            <label class="form-check-label text-slate-200 small ms-2" for="switchActiva">
-                                Categoría Activa
-                            </label>
-                        </div>
+                        <MudSwitch @bind-Value="formActiva"
+                                   Color="Color.Success"
+                                   Label="Categoría Activa en la Plataforma"
+                                   Style="color: #e2e8f0;" />
                     }
+                </MudStack>
 
-                    <div class="d-flex justify-content-end gap-2 pt-2 border-top border-slate-subtle">
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="CerrarModal" disabled="@guardando">
-                            Cancelar
-                        </button>
-                        <button class="btn btn-amber btn-sm fw-semibold" @onclick="GuardarCategoria" disabled="@guardando">
-                            @if (guardando)
-                            {
-                                <span class="spinner-border spinner-border-sm me-1"></span>
-                            }
-                            @(esEdicion ? "Guardar Cambios" : "Crear")
-                        </button>
-                    </div>
-                </div>
-            </div>
-        }
+                <!-- Acciones del Modal -->
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="pt-4" Style="border-top: 1px solid #334155;">
+                    <MudButton OnClick="CerrarModal" Disabled="@guardando" Style="color: #cbd5e1; text-transform: none;">
+                        Cancelar
+                    </MudButton>
+                    <MudButton Color="Color.Warning"
+                               Variant="Variant.Filled"
+                               OnClick="GuardarCategoria"
+                               Disabled="@guardando"
+                               Style="font-weight: 700; color: #05080f; text-transform: none; border-radius: 8px;">
+                        @if (guardando)
+                        {
+                            <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" Style="color: #05080f;" />
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>@(esEdicion ? "Guardar Cambios" : "Crear Categoría")</span>
+                        }
+                    </MudButton>
+                </MudStack>
+
+            </MudPaper>
+        </MudOverlay>
+
     </Authorized>
+    <NotAuthorized>
+        <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex justify-center align-center" Style="min-height: 100vh;">
+            <MudPaper Class="pa-8 text-center rounded-xl" Elevation="3" Style="background-color: #0b0f19; border: 1px solid #1e293b;">
+                <MudIcon Icon="@Icons.Material.Rounded.Security" Size="Size.Large" Style="color: var(--mud-palette-error);" Class="mb-4" />
+                <MudText Typo="Typo.h5" Style="font-weight: 700; color: #f8fafc;" Class="mb-2">Acceso Denegado</MudText>
+                <MudText Typo="Typo.body2" Style="color: #94a3b8;" Class="mb-6">Necesitás privilegios de administrador para visualizar esta sección.</MudText>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Href="/login" Style="border-radius: 8px; font-weight: 700; color: #05080f;">
+                    Ir a Iniciar Sesión
+                </MudButton>
+            </MudPaper>
+        </MudContainer>
+    </NotAuthorized>
 </AuthorizeView>
 
+<style>
+    body {
+        background-color: #05080f;
+        color: #f8fafc;
+    }
+
+    .minimal-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .filter-bar {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    .categories-table {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+        .categories-table .mud-table-head .mud-table-cell {
+            background-color: #0f172a !important;
+            color: #cbd5e1 !important;
+            font-weight: 700 !important;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #1e293b !important;
+        }
+
+        .categories-table .mud-table-body .mud-table-cell {
+            border-bottom: 1px solid rgba(30, 41, 59, 0.6) !important;
+            padding-top: 10px !important;
+            padding-bottom: 10px !important;
+        }
+
+        .categories-table .mud-table-row:hover {
+            background-color: rgba(30, 41, 59, 0.45) !important;
+        }
+
+    .id-badge {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: #94a3b8;
+        background-color: #0f172a;
+        border: 1px solid #1e293b;
+        padding: 2px 8px;
+        border-radius: 6px;
+    }
+
+    .modal-paper {
+        background-color: #0b0f19 !important;
+        border-color: #334155 !important;
+    }
+
+    .action-btn {
+        border-color: #334155 !important;
+        color: #e2e8f0 !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+    }
+
+        .action-btn:hover {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
+
+    .danger-btn {
+        border-color: #334155 !important;
+        color: #ef4444 !important;
+        border-radius: 8px !important;
+    }
+
+        .danger-btn:hover {
+            background-color: rgba(239, 68, 68, 0.12) !important;
+            border-color: rgba(239, 68, 68, 0.35) !important;
+        }
+
+    /* === ALTO CONTRASTE UNIFICADO PARA TODOS LOS INPUTS === */
+    .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-outlined {
+        background-color: #1e293b !important;
+        border-radius: 8px !important;
+    }
+
+    .mud-input-outlined-border {
+        border-color: #475569 !important;
+        border-width: 1.5px !important;
+    }
+
+    .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #94a3b8 !important;
+    }
+
+    .mud-input.mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+        border-color: #f59e0b !important;
+        border-width: 2px !important;
+    }
+
+    .mud-input > input.mud-input-root,
+    .mud-input > textarea.mud-input-root,
+    div.mud-input-slot.mud-input-root {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+
+        .mud-input > input.mud-input-root::placeholder,
+        .mud-input > textarea.mud-input-root::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+        }
+
+    .mud-input-label {
+        color: #e2e8f0 !important;
+        font-weight: 600 !important;
+        background-color: transparent !important;
+    }
+
+    .mud-input-control.mud-input-focused .mud-input-label {
+        color: #f59e0b !important;
+    }
+
+    .mud-input-adornment .mud-icon-root,
+    .mud-input-adornment button {
+        color: #cbd5e1 !important;
+    }
+</style>
+
 @code {
+    private MudTheme AdminTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#f59e0b",
+            Secondary = "#3b82f6",
+            Success = "#10b981",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Background = "#05080f",
+            Surface = "#0b0f19",
+            AppbarBackground = "#05080f",
+            TextPrimary = "#ffffff",
+            TextSecondary = "#e2e8f0",
+            LinesDefault = "#475569",
+            LinesInputs = "#64748b",
+            ActionDefault = "#cbd5e1"
+        }
+    };
+
     private List<CategoriaResponseDto> categorias = new();
     private string filtroTexto = string.Empty;
     private bool soloActivas = false;
@@ -227,11 +466,28 @@
         await CargarCategorias();
     }
 
+    private async Task OnSoloActivasChanged(bool valor)
+    {
+        soloActivas = valor;
+        await CargarCategorias();
+    }
+
     private async Task CargarCategorias()
     {
         cargando = true;
-        categorias = await CategoriaService.ObtenerTodasAsync(soloActivas);
-        cargando = false;
+        try
+        {
+            categorias = await CategoriaService.ObtenerTodasAsync(soloActivas);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar categorías: {ex.Message}");
+            categorias = new List<CategoriaResponseDto>();
+        }
+        finally
+        {
+            cargando = false;
+        }
     }
 
     private List<CategoriaResponseDto> categoriasFiltradas
@@ -243,6 +499,7 @@
 
             var f = filtroTexto.Trim().ToLower();
             return categorias.Where(c =>
+                c.IdCategoria.ToString().Contains(f) ||
                 (c.Nombre != null && c.Nombre.ToLower().Contains(f)) ||
                 (c.Descripcion != null && c.Descripcion.ToLower().Contains(f))
             ).ToList();
@@ -290,49 +547,54 @@
         guardando = true;
         mensajeError = null;
 
-        if (esEdicion)
+        try
         {
-            var dto = new ActualizarCategoriaDto
+            bool ok;
+            if (esEdicion)
             {
-                Nombre = formNombre.Trim(),
-                Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
-                IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim(),
-                Activa = formActiva
-            };
+                var dto = new ActualizarCategoriaDto
+                {
+                    Nombre = formNombre.Trim(),
+                    Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
+                    IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim(),
+                    Activa = formActiva
+                };
 
-            var ok = await CategoriaService.ActualizarAsync(idSeleccionado, dto);
-            if (ok)
-            {
-                await CargarCategorias();
-                CerrarModal();
+                ok = await CategoriaService.ActualizarAsync(idSeleccionado, dto);
             }
             else
             {
-                mensajeError = "No se pudo actualizar. Verificá los datos o permisos.";
-            }
-        }
-        else
-        {
-            var dto = new CrearCategoriaDto
-            {
-                Nombre = formNombre.Trim(),
-                Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
-                IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim()
-            };
+                var dto = new CrearCategoriaDto
+                {
+                    Nombre = formNombre.Trim(),
+                    Descripcion = string.IsNullOrWhiteSpace(formDescripcion) ? null : formDescripcion.Trim(),
+                    IconoUrl = string.IsNullOrWhiteSpace(formIconoUrl) ? null : formIconoUrl.Trim()
+                };
 
-            var ok = await CategoriaService.CrearAsync(dto);
+                ok = await CategoriaService.CrearAsync(dto);
+            }
+
             if (ok)
             {
-                await CargarCategorias();
-                CerrarModal();
+                mostrarModal = false;
+                Snackbar.Add(esEdicion ? "Categoría actualizada correctamente." : "Categoría creada con éxito.", Severity.Success);
+                categorias = await CategoriaService.ObtenerTodasAsync(soloActivas);
             }
             else
             {
-                mensajeError = "No se pudo crear la categoría.";
+                mensajeError = esEdicion
+                    ? "No se pudo actualizar. Verificá los datos o permisos."
+                    : "No se pudo crear la categoría.";
             }
         }
-
-        guardando = false;
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
     }
 
     private async Task EliminarCategoria(int id)
@@ -340,7 +602,12 @@
         var ok = await CategoriaService.EliminarAsync(id);
         if (ok)
         {
-            await CargarCategorias();
+            Snackbar.Add("Categoría eliminada.", Severity.Info);
+            categorias = await CategoriaService.ObtenerTodasAsync(soloActivas);
+        }
+        else
+        {
+            Snackbar.Add("No se pudo eliminar la categoría.", Severity.Error);
         }
     }
 }

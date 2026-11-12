@@ -1,4 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using Microsoft.AspNetCore.Components.Authorization;
 using OficiosApp.Shared.Dtos.Base;
 using OficiosApp.Shared.Dtos.Usuarios;
 
@@ -7,16 +9,31 @@ namespace OficiosApp.Web.Services;
 public class UsuarioService : IUsuarioService
 {
     private readonly HttpClient _http;
+    private readonly AuthenticationStateProvider _authStateProvider;
 
-    public UsuarioService(HttpClient http)
+    public UsuarioService(HttpClient http, AuthenticationStateProvider authStateProvider)
     {
         _http = http;
+        _authStateProvider = authStateProvider;
+    }
+
+    private async Task PrepararHeaderAutenticacionAsync()
+    {
+        if (_authStateProvider is CustomAuthStateProvider customAuth)
+        {
+            var token = await customAuth.GetTokenAsync();
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
     }
 
     public async Task<List<UsuarioDto>> ObtenerTodosAsync()
     {
         try
         {
+            await PrepararHeaderAutenticacionAsync();
             var response = await _http.GetFromJsonAsync<BaseResponse<List<UsuarioDto>>>("api/Usuarios");
             if (response != null && response.Success && response.Data != null)
             {
@@ -35,6 +52,7 @@ public class UsuarioService : IUsuarioService
     {
         try
         {
+            await PrepararHeaderAutenticacionAsync();
             var response = await _http.GetFromJsonAsync<BaseResponse<UsuarioDto>>($"api/Usuarios/{id}");
             if (response != null && response.Success)
             {
@@ -53,6 +71,7 @@ public class UsuarioService : IUsuarioService
     {
         try
         {
+            await PrepararHeaderAutenticacionAsync();
             var response = await _http.PutAsJsonAsync($"api/Usuarios/{id}", dto);
             return response.IsSuccessStatusCode;
         }
@@ -67,6 +86,7 @@ public class UsuarioService : IUsuarioService
     {
         try
         {
+            await PrepararHeaderAutenticacionAsync();
             var response = await _http.DeleteAsync($"api/Usuarios/{id}");
             return response.IsSuccessStatusCode;
         }

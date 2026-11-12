@@ -1,12 +1,19 @@
 ﻿@page "/admin/zonas"
 @attribute [Authorize]
-@rendermode InteractiveServer
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using OficiosApp.Shared.Dtos.Zonas
 @using OficiosApp.Web.Services
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
 @inject IZonaService ZonaService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<PageTitle>Gestión de Zonas — Admin</PageTitle>
+<PageTitle>Gestión de Zonas — OficiosApp</PageTitle>
+
+<MudThemeProvider Theme="AdminTheme" IsDarkMode="true" />
+<MudSnackbarProvider />
 
 <AuthorizeView>
     <Authorized>
@@ -18,201 +25,362 @@
             }
         }
 
-        <div class="container py-4">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="pt-8 pb-16 minimal-bg">
+
             <!-- Header con Acción Principal -->
-            <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
-                <div>
-                    <span class="badge-admin">Módulo Admin</span>
-                    <h1 class="h2 fw-bold text-white mb-1">Zonas de Cobertura</h1>
-                    <p class="text-secondary small mb-0">Administrá las áreas geográficas y códigos postales donde operan los profesionales.</p>
-                </div>
-                <button class="btn btn-amber fw-semibold d-flex align-items-center gap-2" @onclick="AbrirModalCreacion">
-                    <span>➕</span>
-                    <span>Nueva Zona</span>
-                </button>
-            </div>
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.End" Class="mb-10 flex-wrap gap-4">
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.overline" Style="color: var(--mud-palette-warning); letter-spacing: 2px; font-weight: 600;">
+                        Módulo Admin
+                    </MudText>
+                    <MudText Typo="Typo.h3" Style="font-weight: 800; letter-spacing: -1px; color: #f8fafc;">
+                        Zonas de Cobertura
+                    </MudText>
+                    <MudText Typo="Typo.subtitle1" Style="color: #94a3b8; font-weight: 300;">
+                        Administrá las áreas geográficas y códigos postales donde operan los profesionales.
+                    </MudText>
+                </MudStack>
 
-            <!-- Filtros & Métricas -->
-            <div class="card bg-surface-card border-slate p-3 mb-4 rounded-3">
-                <div class="row g-3 align-items-center">
-                    <div class="col-12 col-md-6">
-                        <div class="input-group">
-                            <span class="input-group-text bg-input border-slate text-secondary">🔍</span>
-                            <input type="text"
-                                   class="form-control auth-input"
-                                   placeholder="Buscar por barrio, ciudad o código postal..."
-                                   @bind="filtroTexto"
-                                   @bind:event="oninput" />
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-6 d-flex justify-content-md-end gap-2 align-items-center">
-                        <div class="form-check form-switch custom-switch me-2">
-                            <input class="form-check-input" type="checkbox" id="switchSoloActivasZonas" @bind="soloActivas" @bind:after="CargarZonas">
-                            <label class="form-check-label text-slate-200 small ms-2" for="switchSoloActivasZonas">
-                                Solo activas
-                            </label>
-                        </div>
-                        <span class="badge bg-dark border border-secondary text-light px-3 py-2">
-                            Total: @zonasFiltradas.Count
-                        </span>
-                        <span class="badge bg-dark border border-success text-success px-3 py-2">
-                            Activas: @zonasFiltradas.Count(z => z.Activa)
-                        </span>
-                    </div>
-                </div>
-            </div>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Warning"
+                           StartIcon="@Icons.Material.Rounded.AddLocationAlt"
+                           OnClick="AbrirModalCreacion"
+                           Class="px-5 py-2"
+                           Style="border-radius: 10px; font-weight: 700; text-transform: none; color: #05080f;">
+                    Nueva Zona
+                </MudButton>
+            </MudStack>
 
-            <!-- Tabla de Datos -->
+            <!-- Filtros y Métricas -->
+            <MudPaper Class="pa-4 mb-8 filter-bar rounded-xl" Elevation="0" Outlined="true">
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="filtroTexto"
+                                      Placeholder="Buscar por barrio, ciudad o código postal..."
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Rounded.Search"
+                                      IconSize="Size.Medium"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Style="background-color: #05080f; border-radius: 8px;" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6" Class="d-flex justify-end align-center flex-wrap gap-3">
+                        <MudSwitch T="bool"
+                                   Value="soloActivas"
+                                   ValueChanged="OnSoloActivasChanged"
+                                   Color="Color.Success"
+                                   Label="Solo activas"
+                                   Style="color: #cbd5e1;" />
+
+                        <MudChip T="string" Color="Color.Dark" Style="border: 1px solid #1e293b; background-color: #0f172a;">
+                            Total: <strong class="ms-1" style="color: #f8fafc;">@zonasFiltradas.Count</strong>
+                        </MudChip>
+
+                        <MudChip T="string" Style="background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2);">
+                            Activas: <strong class="ms-1">@zonasFiltradas.Count(z => z.Activa)</strong>
+                        </MudChip>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            <!-- Grilla de Zonas -->
             @if (cargando)
             {
-                <div class="text-center py-5">
-                    <div class="spinner-border text-amber" role="status"></div>
-                    <p class="text-secondary mt-2 small">Cargando zonas de cobertura...</p>
-                </div>
+                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-16">
+                    <MudProgressCircular Color="Color.Warning" Indeterminate="true" Size="Size.Large" />
+                    <MudText Typo="Typo.body2" Style="color: #64748b;" Class="mt-4">Cargando zonas de cobertura...</MudText>
+                </MudStack>
             }
             else if (!zonasFiltradas.Any())
             {
-                <div class="card bg-surface-card border-slate text-center py-5 px-3 rounded-3">
-                    <div class="fs-1 mb-2">📍</div>
-                    <h5 class="text-white fw-semibold">No se encontraron zonas</h5>
-                    <p class="text-secondary small mb-0">Podés registrar una nueva zona geográfica con el botón superior.</p>
-                </div>
+                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-16">
+                    <MudIcon Icon="@Icons.Material.Rounded.LocationOff" Size="Size.Large" Style="color: #334155; font-size: 4rem;" />
+                    <MudText Typo="Typo.h6" Style="color: #f8fafc;" Class="mt-4">No se encontraron zonas</MudText>
+                    <MudText Typo="Typo.body2" Style="color: #64748b;">Podés registrar una nueva zona geográfica con el botón superior.</MudText>
+                </MudStack>
             }
             else
             {
-                <div class="card bg-surface-card border-slate rounded-3 overflow-hidden">
-                    <div class="table-responsive">
-                        <table class="table table-dark table-hover mb-0 align-middle">
-                            <thead class="border-slate-subtle">
-                                <tr class="text-secondary small text-uppercase">
-                                    <th style="width: 80px;">ID</th>
-                                    <th>Nombre de la Zona / Barrio</th>
-                                    <th style="width: 150px;">Código Postal</th>
-                                    <th style="width: 120px;" class="text-center">Estado</th>
-                                    <th style="width: 130px;" class="text-end">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var z in zonasFiltradas)
-                                {
-                                    <tr>
-                                        <td class="text-secondary font-monospace small">#@z.IdZona</td>
-                                        <td class="text-white fw-semibold">
-                                            <span class="me-2 text-secondary">📍</span>@z.Nombre
-                                        </td>
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(z.CodigoPostal))
-                                            {
-                                                <span class="badge bg-dark border border-secondary text-slate-200 font-monospace px-2 py-1">
-                                                    @z.CodigoPostal
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="text-secondary small">—</span>
-                                            }
-                                        </td>
-                                        <td class="text-center">
-                                            @if (z.Activa)
-                                            {
-                                                <span class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-25 px-2 py-1">Activa</span>
-                                            }
-                                            else
-                                            {
-                                                <span class="badge bg-danger bg-opacity-25 text-danger border border-danger border-opacity-25 px-2 py-1">Inactiva</span>
-                                            }
-                                        </td>
-                                        <td class="text-end">
-                                            <div class="btn-group btn-group-sm">
-                                                <button class="btn btn-outline-secondary" title="Editar" @onclick="() => AbrirModalEdicion(z)">
-                                                    ✏️
-                                                </button>
-                                                <button class="btn btn-outline-danger" title="Eliminar" @onclick="() => EliminarZona(z.IdZona)">
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <MudGrid Spacing="4">
+                    @foreach (var z in zonasFiltradas)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudPaper Class="pa-5 zone-card rounded-xl d-flex flex-column" Elevation="0" Outlined="true" Style="height: 100%;">
+
+                                <!-- Icono y Estado -->
+                                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start" Class="mb-3">
+                                    <MudAvatar Style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1px solid #334155; color: #f59e0b;" Size="Size.Large">
+                                        <MudIcon Icon="@Icons.Material.Rounded.Place" Size="Size.Medium" />
+                                    </MudAvatar>
+
+                                    @if (z.Activa)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Style="background-color: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); font-weight: 600;">
+                                            Activa
+                                        </MudChip>
+                                    }
+                                    else
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Style="background-color: rgba(239, 68, 68, 0.1); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.2); font-weight: 600;">
+                                            Inactiva
+                                        </MudChip>
+                                    }
+                                </MudStack>
+
+                                <!-- Datos de la Zona -->
+                                <MudText Typo="Typo.caption" Style="color: #64748b; font-family: monospace;">ID #@z.IdZona</MudText>
+                                <MudText Typo="Typo.h6" Style="font-weight: 700; color: #f8fafc; line-height: 1.2;" Class="mb-3 text-truncate" title="@z.Nombre">
+                                    @z.Nombre
+                                </MudText>
+
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Class="mb-6">
+                                    <MudIcon Icon="@Icons.Material.Rounded.MarkunreadMailbox" Size="Size.Small" Style="color: #64748b;" />
+                                    @if (!string.IsNullOrWhiteSpace(z.CodigoPostal))
+                                    {
+                                        <MudText Typo="Typo.caption" Style="color: #cbd5e1; font-family: monospace; background-color: #0f172a; border: 1px solid #1e293b; padding: 2px 8px; border-radius: 6px;">
+                                            CP: @z.CodigoPostal
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        <MudText Typo="Typo.caption" Style="color: #64748b;">Sin código postal</MudText>
+                                    }
+                                </MudStack>
+
+                                <!-- Acciones -->
+                                <MudStack Row="true" Spacing="2" Class="mt-auto pt-4" Style="border-top: 1px solid rgba(255,255,255,0.05);">
+                                    <MudButton Variant="Variant.Outlined"
+                                               StartIcon="@Icons.Material.Rounded.Edit"
+                                               Class="flex-grow-1 action-btn"
+                                               OnClick="@(() => AbrirModalEdicion(z))">
+                                        Editar
+                                    </MudButton>
+                                    <MudIconButton Icon="@Icons.Material.Rounded.DeleteOutline"
+                                                   Variant="Variant.Outlined"
+                                                   Class="danger-btn"
+                                                   Title="Eliminar zona"
+                                                   OnClick="@(() => EliminarZona(z.IdZona))" />
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+                    }
+                </MudGrid>
             }
-        </div>
+        </MudContainer>
 
-        <!-- Modal de Alta / Edición -->
-        @if (mostrarModal)
-        {
-            <div class="modal-backdrop-custom d-flex align-items-center justify-content-center p-3">
-                <div class="modal-dialog-custom card bg-surface-card border-slate p-4 rounded-3 shadow-lg">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5 class="text-white fw-bold mb-0">
+        <!-- Modal con MudOverlay (Evita el fallo de circuito de MudDialogProvider) -->
+        <MudOverlay Visible="mostrarModal" DarkBackground="true" Absolute="false" ZIndex="1300">
+            <MudPaper Class="pa-6 modal-paper rounded-xl" Outlined="true" Elevation="24" Style="width: 92vw; max-width: 480px;">
+
+                <!-- Encabezado del Modal -->
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="pb-4 mb-4" Style="border-bottom: 1px solid #1e293b;">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@(esEdicion ? Icons.Material.Rounded.EditLocationAlt : Icons.Material.Rounded.AddLocationAlt)"
+                                 Style="color: #f59e0b;" />
+                        <MudText Typo="Typo.h6" Style="font-weight: 700; color: #f8fafc;">
                             @(esEdicion ? "Editar Zona" : "Nueva Zona")
-                        </h5>
-                        <button class="btn-close btn-close-white" @onclick="CerrarModal"></button>
-                    </div>
+                        </MudText>
+                    </MudStack>
+                    <MudIconButton Icon="@Icons.Material.Rounded.Close" Size="Size.Small" OnClick="CerrarModal" Style="color: #94a3b8;" />
+                </MudStack>
 
+                <!-- Cuerpo del Modal -->
+                <MudStack Spacing="4" Class="mb-6 text-start">
                     @if (!string.IsNullOrEmpty(mensajeError))
                     {
-                        <div class="alert alert-danger py-2 small mb-3">@mensajeError</div>
+                        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Style="border-radius: 8px;">
+                            @mensajeError
+                        </MudAlert>
                     }
 
-                    <div class="mb-3">
-                        <label class="form-label text-slate-200 small">Nombre de la Zona / Ciudad / Barrio *</label>
-                        <input type="text"
-                               maxlength="100"
-                               class="form-control auth-input"
-                               placeholder="Ej: Centro, Villa Santillán, Zona Norte"
-                               @bind="formNombre" />
-                    </div>
+                    <MudTextField @bind-Value="formNombre"
+                                  Label="Nombre de la Zona / Ciudad / Barrio *"
+                                  Placeholder="Ej: Centro, Villa Santillán, Zona Norte"
+                                  MaxLength="100"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Style="background-color: #05080f;" />
 
-                    <div class="mb-3">
-                        <label class="form-label text-slate-200 small">Código Postal (opcional, máx 10)</label>
-                        <input type="text"
-                               maxlength="10"
-                               class="form-control auth-input font-monospace"
-                               placeholder="Ej: 6300"
-                               @bind="formCodigoPostal"
-                               style="max-width: 150px;" />
-                    </div>
+                    <MudTextField @bind-Value="formCodigoPostal"
+                                  Label="Código Postal (opcional, máx 10)"
+                                  Placeholder="Ej: 6300"
+                                  MaxLength="10"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Style="background-color: #05080f;" />
 
                     @if (esEdicion)
                     {
-                        <div class="form-check form-switch custom-switch mb-3">
-                            <input class="form-check-input" type="checkbox" id="switchZonaActiva" @bind="formActiva">
-                            <label class="form-check-label text-slate-200 small ms-2" for="switchZonaActiva">
-                                Zona Activa en la Plataforma
-                            </label>
-                        </div>
+                        <MudSwitch @bind-Value="formActiva"
+                                   Color="Color.Success"
+                                   Label="Zona Activa en la Plataforma"
+                                   Style="color: #cbd5e1;" />
                     }
+                </MudStack>
 
-                    <div class="d-flex justify-content-end gap-2 pt-2 border-top border-slate-subtle">
-                        <button class="btn btn-outline-secondary btn-sm" @onclick="CerrarModal" disabled="@guardando">
-                            Cancelar
-                        </button>
-                        <button class="btn btn-amber btn-sm fw-semibold" @onclick="GuardarZona" disabled="@guardando">
-                            @if (guardando)
-                            {
-                                <span class="spinner-border spinner-border-sm me-1"></span>
-                            }
-                            @(esEdicion ? "Guardar Cambios" : "Crear Zona")
-                        </button>
-                    </div>
-                </div>
-            </div>
-        }
+                <!-- Acciones del Modal -->
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="pt-4" Style="border-top: 1px solid #1e293b;">
+                    <MudButton OnClick="CerrarModal" Disabled="@guardando" Style="color: #94a3b8; text-transform: none;">
+                        Cancelar
+                    </MudButton>
+                    <MudButton Color="Color.Warning"
+                               Variant="Variant.Filled"
+                               OnClick="GuardarZona"
+                               Disabled="@guardando"
+                               Style="font-weight: 700; color: #05080f; text-transform: none; border-radius: 8px;">
+                        @if (guardando)
+                        {
+                            <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" Style="color: #05080f;" />
+                            <span>Guardando...</span>
+                        }
+                        else
+                        {
+                            <span>@(esEdicion ? "Guardar Cambios" : "Crear Zona")</span>
+                        }
+                    </MudButton>
+                </MudStack>
+
+            </MudPaper>
+        </MudOverlay>
+
     </Authorized>
 </AuthorizeView>
 
+<style>
+    body {
+        background-color: #05080f;
+        color: #f8fafc;
+    }
+
+    .minimal-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .filter-bar {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+    }
+
+    .zone-card {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+        transition: all 0.2s ease-in-out;
+    }
+
+        .zone-card:hover {
+            border-color: #334155 !important;
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5) !important;
+        }
+
+    .modal-paper {
+        background-color: #0b0f19 !important;
+        border-color: #334155 !important;
+    }
+
+    .action-btn {
+        border-color: #334155 !important;
+        color: #e2e8f0 !important;
+        text-transform: none !important;
+        font-weight: 600 !important;
+        border-radius: 8px !important;
+    }
+
+        .action-btn:hover {
+            background-color: #1e293b !important;
+            color: #ffffff !important;
+        }
+
+    .danger-btn {
+        border-color: #334155 !important;
+        color: #ef4444 !important;
+        border-radius: 8px !important;
+    }
+
+        .danger-btn:hover {
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            border-color: rgba(239, 68, 68, 0.3) !important;
+        }
+
+    /* === ALTO CONTRASTE UNIFICADO PARA TODOS LOS INPUTS === */
+    .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-outlined {
+        background-color: #1e293b !important;
+        border-radius: 8px !important;
+    }
+
+    .mud-input-outlined-border {
+        border-color: #475569 !important;
+        border-width: 1.5px !important;
+    }
+
+    .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #94a3b8 !important;
+    }
+
+    .mud-input.mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+        border-color: #f59e0b !important;
+        border-width: 2px !important;
+    }
+
+    .mud-input > input.mud-input-root,
+    .mud-input > textarea.mud-input-root,
+    div.mud-input-slot.mud-input-root {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+
+        .mud-input > input.mud-input-root::placeholder,
+        .mud-input > textarea.mud-input-root::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+        }
+
+    .mud-input-label {
+        color: #e2e8f0 !important;
+        font-weight: 600 !important;
+        background-color: transparent !important;
+    }
+
+    .mud-input-control.mud-input-focused .mud-input-label {
+        color: #f59e0b !important;
+    }
+
+    .mud-input-adornment .mud-icon-root,
+    .mud-input-adornment button {
+        color: #cbd5e1 !important;
+    }
+</style>
+
 @code {
+    private MudTheme AdminTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#f59e0b",           // Ámbar para foco de inputs y acentos principales
+            Secondary = "#3b82f6",         // Azul secundario
+            Success = "#10b981",           // Verde estados activos
+            Warning = "#f59e0b",           // Ámbar botones principales
+            Error = "#ef4444",             // Rojo errores y bajas
+            Background = "#05080f",        // Fondo general de pantalla (body)
+            Surface = "#0b0f19",           // Fondo de tarjetas y modales
+            AppbarBackground = "#05080f",
+            TextPrimary = "#ffffff",       // Texto dentro de los inputs en blanco puro
+            TextSecondary = "#e2e8f0",     // Labels de los inputs bien claros
+            LinesDefault = "#475569",      // Bordes generales visibles
+            LinesInputs = "#64748b",       // Bordes de inputs
+            ActionDefault = "#cbd5e1"      // Íconos de inputs
+        }
+    };
+
     private List<ZonaResponseDto> zonas = new();
     private string filtroTexto = string.Empty;
     private bool soloActivas = false;
     private bool cargando = true;
     private bool guardando = false;
 
-    // Estado del modal
     private bool mostrarModal = false;
     private bool esEdicion = false;
     private int idSeleccionado = 0;
@@ -226,11 +394,28 @@
         await CargarZonas();
     }
 
+    private async Task OnSoloActivasChanged(bool valor)
+    {
+        soloActivas = valor;
+        await CargarZonas();
+    }
+
     private async Task CargarZonas()
     {
         cargando = true;
-        zonas = await ZonaService.ObtenerTodasAsync(soloActivas);
-        cargando = false;
+        try
+        {
+            zonas = await ZonaService.ObtenerTodasAsync(soloActivas);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al consultar zonas: {ex.Message}");
+            zonas = new List<ZonaResponseDto>();
+        }
+        finally
+        {
+            cargando = false;
+        }
     }
 
     private List<ZonaResponseDto> zonasFiltradas
@@ -287,47 +472,52 @@
         guardando = true;
         mensajeError = null;
 
-        if (esEdicion)
+        try
         {
-            var dto = new ActualizarZonaDto
+            bool ok;
+            if (esEdicion)
             {
-                Nombre = formNombre.Trim(),
-                CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim(),
-                Activa = formActiva
-            };
+                var dto = new ActualizarZonaDto
+                {
+                    Nombre = formNombre.Trim(),
+                    CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim(),
+                    Activa = formActiva
+                };
 
-            var ok = await ZonaService.ActualizarAsync(idSeleccionado, dto);
-            if (ok)
-            {
-                await CargarZonas();
-                CerrarModal();
+                ok = await ZonaService.ActualizarAsync(idSeleccionado, dto);
             }
             else
             {
-                mensajeError = "No se pudo actualizar la zona. Verificá los datos o permisos.";
-            }
-        }
-        else
-        {
-            var dto = new CrearZonaDto
-            {
-                Nombre = formNombre.Trim(),
-                CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim()
-            };
+                var dto = new CrearZonaDto
+                {
+                    Nombre = formNombre.Trim(),
+                    CodigoPostal = string.IsNullOrWhiteSpace(formCodigoPostal) ? null : formCodigoPostal.Trim()
+                };
 
-            var ok = await ZonaService.CrearAsync(dto);
+                ok = await ZonaService.CrearAsync(dto);
+            }
+
             if (ok)
             {
-                await CargarZonas();
-                CerrarModal();
+                mostrarModal = false;
+                Snackbar.Add(esEdicion ? "Zona actualizada correctamente." : "Zona creada con éxito.", Severity.Success);
+                zonas = await ZonaService.ObtenerTodasAsync(soloActivas);
             }
             else
             {
-                mensajeError = "No se pudo crear la zona.";
+                mensajeError = esEdicion
+                    ? "No se pudo actualizar la zona. Verificá los datos o permisos."
+                    : "No se pudo crear la zona.";
             }
         }
-
-        guardando = false;
+        catch (Exception ex)
+        {
+            mensajeError = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            guardando = false;
+        }
     }
 
     private async Task EliminarZona(int id)
@@ -335,7 +525,12 @@
         var ok = await ZonaService.EliminarAsync(id);
         if (ok)
         {
-            await CargarZonas();
+            Snackbar.Add("Zona eliminada.", Severity.Info);
+            zonas = await ZonaService.ObtenerTodasAsync(soloActivas);
+        }
+        else
+        {
+            Snackbar.Add("No se pudo eliminar la zona.", Severity.Error);
         }
     }
 }

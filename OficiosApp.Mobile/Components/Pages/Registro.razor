@@ -1,178 +1,160 @@
 @page "/registro"
-@layout Layout.EmptyLayout
+@layout EmptyLayout
+@using OficiosApp.Mobile.Services
+@using OficiosApp.Shared.Dtos.Auth.Register.Request
+@inject IAuthService AuthService
 @inject NavigationManager Nav
-@inject OficiosApp.Mobile.Services.IAuthService AuthService
 
-<div class="h-full bg-gray-100 flex flex-col">
+<div class="min-h-full flex flex-col justify-center items-center bg-gray-100 p-4 py-8">
+    <div class="w-full max-w-md bg-white p-6 rounded-2xl shadow-md border border-gray-200">
 
-    @if (pasoActual == 1)
-    {
-        <div class="bg-blue-600 text-white p-4 flex items-center shadow-md">
-            <span @onclick='() => Nav.NavigateTo("/login")' class="cursor-pointer mr-4 text-xl font-bold">←</span>
-            <span class="font-bold text-lg">Tus Datos</span>
+        <!-- Encabezado -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-black text-blue-600 tracking-wide">Crear Cuenta</h1>
+            <p class="text-xs text-gray-500 mt-1">Completá tus datos para unirte a OficiosApp</p>
         </div>
-        <div class="flex-1 overflow-y-auto p-4 flex flex-col justify-center">
-            <p class="text-gray-600 mb-6 text-sm text-center">Completá tus datos para crear tu cuenta gratuita.</p>
 
-            <input type="text" @bind="registroDto.Nombre" placeholder="Nombre" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
-            <input type="text" @bind="registroDto.Apellido" placeholder="Apellido" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
-            <input type="tel" @bind="registroDto.Telefono" placeholder="Teléfono (Ej: 2954...)" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
-            <input type="email" @bind="registroDto.Email" placeholder="Correo electrónico" class="w-full p-3 mb-4 rounded border border-gray-300 outline-none focus:border-blue-500">
-            <input type="password" @bind="registroDto.Password" placeholder="Crear contraseña" class="w-full p-3 mb-8 rounded border border-gray-300 outline-none focus:border-blue-500">
+        <EditForm Model="@modelo" OnValidSubmit="ProcesarRegistro">
+            <DataAnnotationsValidator />
 
-            @if (errorValidacion)
+            <!-- Selector de Tipo de Cuenta: 2 = Cliente, 3 = Profesional -->
+            <div class="mb-4">
+                <label class="block text-xs font-semibold text-gray-700 mb-2">¿Cómo vas a usar la app?</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button"
+                            @onclick="() => SeleccionarRol(2)"
+                            class="p-3 rounded-xl border text-center transition-all @(modelo.IdRol == 2 ? "border-blue-600 bg-blue-50 text-blue-700 font-bold shadow-sm" : "border-gray-200 bg-white text-gray-600")">
+                        <span class="text-2xl block mb-1">👤</span>
+                        <span class="text-xs">Soy Cliente</span>
+                    </button>
+                    <button type="button"
+                            @onclick="() => SeleccionarRol(3)"
+                            class="p-3 rounded-xl border text-center transition-all @(modelo.IdRol == 3 ? "border-blue-600 bg-blue-50 text-blue-700 font-bold shadow-sm" : "border-gray-200 bg-white text-gray-600")">
+                        <span class="text-2xl block mb-1">🛠️</span>
+                        <span class="text-xs">Soy Profesional</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <!-- Nombre y Apellido -->
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-600 mb-1">Nombre</label>
+                        <InputText @bind-Value="modelo.Nombre"
+                                   placeholder="Juan"
+                                   class="w-full p-2.5 rounded-lg border border-gray-300 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white" />
+                        <ValidationMessage For="@(() => modelo.Nombre)" class="text-[10px] text-red-500 mt-0.5" />
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-semibold text-gray-600 mb-1">Apellido</label>
+                        <InputText @bind-Value="modelo.Apellido"
+                                   placeholder="Pérez"
+                                   class="w-full p-2.5 rounded-lg border border-gray-300 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white" />
+                        <ValidationMessage For="@(() => modelo.Apellido)" class="text-[10px] text-red-500 mt-0.5" />
+                    </div>
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Email</label>
+                    <InputText @bind-Value="modelo.Email"
+                               type="email"
+                               placeholder="juanperez@ejemplo.com"
+                               class="w-full p-2.5 rounded-lg border border-gray-300 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white" />
+                    <ValidationMessage For="@(() => modelo.Email)" class="text-[10px] text-red-500 mt-0.5" />
+                </div>
+
+                <!-- Teléfono -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Teléfono</label>
+                    <InputText @bind-Value="modelo.Telefono"
+                               placeholder="Ej: 2954123456"
+                               class="w-full p-2.5 rounded-lg border border-gray-300 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white" />
+                    <ValidationMessage For="@(() => modelo.Telefono)" class="text-[10px] text-red-500 mt-0.5" />
+                </div>
+
+                <!-- Contraseña -->
+                <div>
+                    <label class="block text-[11px] font-semibold text-gray-600 mb-1">Contraseña</label>
+                    <InputText @bind-Value="modelo.Password"
+                               type="password"
+                               placeholder="Mínimo 6 caracteres"
+                               class="w-full p-2.5 rounded-lg border border-gray-300 text-xs outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200 bg-white" />
+                    <ValidationMessage For="@(() => modelo.Password)" class="text-[10px] text-red-500 mt-0.5" />
+                </div>
+            </div>
+
+            <!-- Feedback de Error -->
+            @if (!string.IsNullOrEmpty(mensajeError))
             {
-                <p class="text-red-500 text-sm text-center mb-4">Completá todos los campos</p>
+                <div class="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-600 text-xs">
+                    @mensajeError
+                </div>
             }
 
-            <button @onclick="IrAPaso2" class="w-full bg-blue-600 text-white font-bold p-4 rounded-lg shadow-lg hover:bg-blue-700 transition-colors">
-                Siguiente
-            </button>
-        </div>
-    }
-    else if (pasoActual == 2)
-    {
-        <div class="flex-1 overflow-y-auto p-6 flex flex-col justify-center">
-            <div class="text-center mb-8">
-                <span @onclick="() => pasoActual = 1" class="cursor-pointer text-gray-500 block text-left mb-4 text-xl font-bold">← Atrás</span>
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">¡Bienvenido!</h2>
-                <p class="text-gray-600">¿Cómo vas a usar HogarFix?</p>
-            </div>
+            <!-- Feedback de Éxito -->
+            @if (registroExitoso)
+            {
+                <div class="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-green-700 text-xs">
+                    ¡Cuenta creada exitosamente! Redirigiendo...
+                </div>
+            }
 
-            <div @onclick='() => SeleccionarRol(2)' class="bg-white p-6 rounded-xl shadow-md mb-6 border-2 border-transparent hover:border-blue-500 cursor-pointer flex flex-col items-center transition-all active:scale-95">
-                <span class="text-5xl mb-3">🛠️</span>
-                <h3 class="font-bold text-lg text-gray-800">Soy Cliente</h3>
-                <p class="text-sm text-gray-500 text-center mt-2">Necesito contratar profesionales.</p>
-            </div>
-
-            <div @onclick='() => SeleccionarRol(3)' class="bg-white p-6 rounded-xl shadow-md border-2 border-transparent hover:border-blue-500 cursor-pointer flex flex-col items-center transition-all active:scale-95">
-                <span class="text-5xl mb-3">👷‍♂️</span>
-                <h3 class="font-bold text-lg text-gray-800">Soy Profesional</h3>
-                <p class="text-sm text-gray-500 text-center mt-2">Quiero ofrecer mis servicios.</p>
-            </div>
-        </div>
-    }
-    else if (pasoActual == 3)
-    {
-        <div class="bg-blue-600 text-white p-4 flex items-center shadow-md">
-            <span @onclick="() => pasoActual = 2" class="cursor-pointer mr-4 text-xl font-bold">←</span>
-            <span class="font-bold text-lg">Tus Especialidades</span>
-        </div>
-        <div class="flex-1 overflow-y-auto p-4">
-            <p class="text-gray-600 mb-6 text-sm">Seleccioná los oficios que realizás.</p>
-
-            <div class="bg-white rounded-lg shadow-sm border p-4 mb-8 space-y-4">
-                @foreach (var oficio in oficiosDisponibles)
+            <!-- Botón de Envío -->
+            <button type="submit"
+                    disabled="@cargando"
+                    class="w-full mt-5 py-3 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-lg shadow-sm transition-all disabled:opacity-60 text-xs flex justify-center items-center">
+                @if (cargando)
                 {
-                    <label class="flex items-center space-x-3 cursor-pointer p-2 hover:bg-blue-50 rounded transition-colors">
-                        <input type="checkbox" checked="@oficiosSeleccionados.Contains(oficio.Id)"
-                               @onchange="(e) => ToggleOficio(oficio.Id, (bool)(e.Value ?? false))"
-                               class="w-5 h-5 text-blue-600 rounded">
-                        <span class="text-gray-700 font-medium">@oficio.Icono @oficio.Nombre</span>
-                    </label>
+                    <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    <span>Creando cuenta...</span>
                 }
-            </div>
-
-            @if (errorValidacion)
-            {
-                <p class="text-red-500 text-sm text-center mb-4">Seleccioná al menos un oficio</p>
-            }
-
-            <button @onclick="FinalizarRegistro" disabled="@cargando"
-                    class="w-full bg-blue-600 text-white font-bold p-4 rounded-lg shadow-lg hover:bg-blue-700 transition-all disabled:opacity-70 disabled:animate-pulse">
-                @(cargando ? "Guardando..." : "Finalizar y Entrar")
+                else
+                {
+                    <span>Registrarme</span>
+                }
             </button>
+        </EditForm>
+
+        <!-- Redirección a Login -->
+        <div class="mt-5 text-center text-xs text-gray-600">
+            ¿Ya tenés una cuenta?
+            <a href="/" class="text-blue-600 font-semibold hover:underline">Iniciá sesión acá</a>
         </div>
-    }
+    </div>
 </div>
 
 @code {
-    private int pasoActual = 1;
+    // Por defecto inicia seleccionado en 2 (Cliente)
+    private RegisterRequestDto modelo = new() { IdRol = 2 };
+    private string mensajeError = string.Empty;
     private bool cargando = false;
-    private bool errorValidacion = false;
+    private bool registroExitoso = false;
 
-    
-    private OficiosApp.Shared.Dtos.Auth.Register.Request.RegisterRequestDto registroDto = new();
-
-
-    private List<OficioModel> oficiosDisponibles = new()
+    private void SeleccionarRol(int idRol)
     {
-        new() { Id = 1, Nombre = "Plomería", Icono = "🚰" },
-        new() { Id = 2, Nombre = "Electricidad", Icono = "⚡" },
-        new() { Id = 3, Nombre = "Gasista Matriculado", Icono = "🔥" },
-        new() { Id = 4, Nombre = "Cerrajería", Icono = "🔑" }
-    };
-
-    private List<int> oficiosSeleccionados = new();
-
-    private void IrAPaso2()
-    {
-        if (string.IsNullOrWhiteSpace(registroDto.Nombre) || string.IsNullOrWhiteSpace(registroDto.Email) || string.IsNullOrWhiteSpace(registroDto.Password))
-        {
-            errorValidacion = true;
-            return;
-        }
-        errorValidacion = false;
-        pasoActual = 2;
+        modelo.IdRol = idRol;
     }
 
-    private async Task SeleccionarRol(int rol)
+    private async Task ProcesarRegistro()
     {
-        registroDto.IdRol = rol; 
-
-        if (rol == 2)
-        {
-            await FinalizarRegistro(); 
-        }
-        else
-        {
-            pasoActual = 3; 
-        }
-    }
-
-    private void ToggleOficio(int id, bool seleccionado)
-    {
-        if (seleccionado && !oficiosSeleccionados.Contains(id))
-            oficiosSeleccionados.Add(id);
-        else if (!seleccionado)
-            oficiosSeleccionados.Remove(id);
-    }
-
-    private async Task FinalizarRegistro()
-    {
-        if (registroDto.IdRol == 3 && oficiosSeleccionados.Count == 0)
-        {
-            errorValidacion = true;
-            return;
-        }
-
-        errorValidacion = false;
         cargando = true;
+        mensajeError = string.Empty;
 
-        
-        // registroDto.OficiosIds = oficiosSeleccionados;
-
-        bool exito = await AuthService.RegisterAsync(registroDto);
+        var (exito, mensaje) = await AuthService.RegisterAsync(modelo);
+        cargando = false;
 
         if (exito)
         {
-            // Auto-login después de registrarse
-            var login = new OficiosApp.Shared.Dtos.Auth.Login.Request.LoginRequestDto { Email = registroDto.Email, Password = registroDto.Password };
-            await AuthService.LoginAsync(login);
-
-            Nav.NavigateTo("/");
+            registroExitoso = true;
+            StateHasChanged();
+            await Task.Delay(1200);
+            Nav.NavigateTo("/", replace: true);
         }
         else
         {
-            
-            cargando = false;
+            mensajeError = mensaje;
         }
-    }
-
-    public class OficioModel
-    {
-        public int Id { get; set; }
-        public string Nombre { get; set; } = "";
-        public string Icono { get; set; } = "";
     }
 }

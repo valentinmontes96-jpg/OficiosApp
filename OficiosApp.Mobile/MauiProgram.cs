@@ -35,7 +35,11 @@ public static class MauiProgram
         builder.Services.AddScoped(sp =>
             sp.GetRequiredService<IHttpClientFactory>().CreateClient("OficiosApi"));
 
-        builder.Services.AddScoped<IAuthService, AuthService>(); builder.Services.AddScoped<ICategoriaService, CategoriaService>();
+        builder.Services.AddScoped<IAuthService, AuthService>();
+        builder.Services.AddScoped<ICategoriaService, CategoriaService>();
+        builder.Services.AddScoped<IProfesionalMobileService, ProfesionalMobileService>();
+        builder.Services.AddScoped<ICitaMobileService, CitaMobileService>();
+
 
         return builder.Build();
     }

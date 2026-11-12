@@ -1,94 +1,251 @@
-﻿@page "/"
-@rendermode InteractiveServer
+﻿@page "/registro"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using OficiosApp.Shared.Dtos.Auth.Register.Request
 @using OficiosApp.Web.Services
+@using MudBlazor
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 
 <PageTitle>Crear Cuenta — OficiosApp</PageTitle>
 
-<div class="auth-wrapper">
-    <div style="max-width: 620px; width: 100%;">
-        <div class="auth-card">
-            <div class="text-center">
-                <span class="auth-badge">Nueva Cuenta</span>
-                <h1 class="auth-title">Comenzá en OficiosApp</h1>
-                <p class="auth-subtitle">Registrate como cliente o profesional independiente</p>
+<MudThemeProvider Theme="AuthTheme" IsDarkMode="true" />
+<MudPopoverProvider />
+
+<div class="minimal-auth-bg d-flex align-center justify-center px-4 py-8">
+    <MudPaper Class="pa-8 auth-card rounded-xl" Elevation="0" Outlined="true" Style="width: 100%; max-width: 600px;">
+
+        <!-- Encabezado -->
+        <MudStack AlignItems="AlignItems.Center" Spacing="1" Class="mb-6 text-center">
+            <div class="auth-icon-wrapper mb-2">
+                <MudIcon Icon="@Icons.Material.Rounded.PersonAddAlt1" Size="Size.Medium" Style="color: #f59e0b;" />
             </div>
+            <MudText Typo="Typo.overline" Style="color: #f59e0b; letter-spacing: 2px; font-weight: 600;">
+                Nueva Cuenta
+            </MudText>
+            <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.5px; color: #f8fafc;">
+                Comenzá en OficiosApp
+            </MudText>
+            <MudText Typo="Typo.body2" Style="color: #94a3b8;">
+                Registrate como cliente o profesional independiente
+            </MudText>
+        </MudStack>
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="auth-alert-error" role="alert">
-                    <span>@errorMessage</span>
-                </div>
-            }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mb-6 rounded-lg">
+                @errorMessage
+            </MudAlert>
+        }
 
-            <EditForm Model="registroModel" OnValidSubmit="HandleRegister">
-                <DataAnnotationsValidator />
+        <EditForm Model="registroModel" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
 
-                <div class="row g-3 mb-3">
-                    <div class="col-12 col-md-6">
-                        <label class="auth-label">Nombre</label>
-                        <InputText @bind-Value="registroModel.Nombre" class="form-control auth-input" placeholder="Juan" />
-                        <ValidationMessage For="@(() => registroModel.Nombre)" class="text-danger small mt-1" />
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <label class="auth-label">Apellido</label>
-                        <InputText @bind-Value="registroModel.Apellido" class="form-control auth-input" placeholder="Pérez" />
-                        <ValidationMessage For="@(() => registroModel.Apellido)" class="text-danger small mt-1" />
-                    </div>
-                </div>
+            <MudGrid Spacing="3">
+                <!-- Nombre y Apellido -->
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="registroModel.Nombre"
+                                  For="@(() => registroModel.Nombre)"
+                                  Label="Nombre"
+                                  Placeholder="Juan"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.PersonOutline" />
+                </MudItem>
 
-                <div class="row g-3 mb-3">
-                    <div class="col-12 col-md-7">
-                        <label class="auth-label">Correo Electrónico</label>
-                        <InputText @bind-Value="registroModel.Email" class="form-control auth-input" type="email" placeholder="juanperez@correo.com" />
-                        <ValidationMessage For="@(() => registroModel.Email)" class="text-danger small mt-1" />
-                    </div>
-                    <div class="col-12 col-md-5">
-                        <label class="auth-label">Teléfono</label>
-                        <InputText @bind-Value="registroModel.Telefono" class="form-control auth-input" placeholder="+54 9 11 ..." />
-                        <ValidationMessage For="@(() => registroModel.Telefono)" class="text-danger small mt-1" />
-                    </div>
-                </div>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="registroModel.Apellido"
+                                  For="@(() => registroModel.Apellido)"
+                                  Label="Apellido"
+                                  Placeholder="Pérez"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.Badge" />
+                </MudItem>
 
-                <div class="mb-3">
-                    <label class="auth-label">Contraseña</label>
-                    <InputText @bind-Value="registroModel.Password" type="password" class="form-control auth-input" placeholder="Mínimo 6 caracteres" />
-                    <ValidationMessage For="@(() => registroModel.Password)" class="text-danger small mt-1" />
-                </div>
+                <!-- Email y Teléfono -->
+                <MudItem xs="12" sm="7">
+                    <MudTextField @bind-Value="registroModel.Email"
+                                  For="@(() => registroModel.Email)"
+                                  Label="Correo Electrónico"
+                                  Placeholder="juanperez@correo.com"
+                                  InputType="InputType.Email"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.AlternateEmail" />
+                </MudItem>
 
-                <div class="mb-4">
-                    <label class="auth-label">¿Qué rol vas a desempeñar?</label>
-                    <InputSelect @bind-Value="registroModel.IdRol" class="form-select auth-select">
-                        <option value="2">Quiero contratar servicios (Cliente)</option>
-                        <option value="3">Quiero ofrecer mis oficios (Profesional)</option>
-                    </InputSelect>
-                    <ValidationMessage For="@(() => registroModel.IdRol)" class="text-danger small mt-1" />
-                </div>
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="registroModel.Telefono"
+                                  For="@(() => registroModel.Telefono)"
+                                  Label="Teléfono"
+                                  Placeholder="+54 9 ..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Rounded.PhoneIphone" />
+                </MudItem>
 
-                <button type="submit" class="btn-auth-primary w-100 d-flex justify-content-center align-items-center" disabled="@isLoading">
-                    @if (isLoading)
-                    {
-                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        <span>Registrando perfil...</span>
-                    }
-                    else
-                    {
-                        <span>Crear mi cuenta</span>
-                    }
-                </button>
-            </EditForm>
+                <!-- Contraseña -->
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="registroModel.Password"
+                                  For="@(() => registroModel.Password)"
+                                  Label="Contraseña"
+                                  Placeholder="Mínimo 6 caracteres"
+                                  InputType="@passwordInput"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@passwordIcon"
+                                  OnAdornmentClick="TogglePasswordVisibility" />
+                </MudItem>
 
-            <div class="text-center mt-4 pt-2 border-top border-secondary border-opacity-25">
-                <span class="text-muted small">¿Ya tenés un usuario registrado?</span>
-                <a href="/login" class="auth-link ms-1 small">Iniciá sesión</a>
-            </div>
-        </div>
-    </div>
+                <!-- Rol -->
+                <MudItem xs="12">
+                    <MudSelect T="int"
+                               @bind-Value="registroModel.IdRol"
+                               For="@(() => registroModel.IdRol)"
+                               Label="¿Qué rol vas a desempeñar?"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               AdornmentIcon="@Icons.Material.Rounded.WorkOutline"
+                               Adornment="Adornment.Start">
+                        <MudSelectItem Value="2">Quiero contratar servicios (Cliente)</MudSelectItem>
+                        <MudSelectItem Value="3">Quiero ofrecer mis oficios (Profesional)</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <!-- Botón Submit -->
+                <MudItem xs="12" Class="mt-2">
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Warning"
+                               FullWidth="true"
+                               Disabled="@isLoading"
+                               Class="py-2"
+                               Style="border-radius: 8px; font-weight: 700; text-transform: none; color: #05080f; font-size: 0.95rem;">
+                        @if (isLoading)
+                        {
+                            <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" Style="color: #05080f;" />
+                            <span>Registrando perfil...</span>
+                        }
+                        else
+                        {
+                            <span>Crear mi cuenta</span>
+                        }
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+
+        <!-- Pie de tarjeta -->
+        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Spacing="1" Class="mt-6 pt-4" Style="border-top: 1px solid #1e293b;">
+            <MudText Typo="Typo.caption" Style="color: #94a3b8;">¿Ya tenés un usuario registrado?</MudText>
+            <MudLink Href="/login" Typo="Typo.caption" Style="color: #f59e0b; font-weight: 600;">Iniciá sesión</MudLink>
+        </MudStack>
+
+    </MudPaper>
 </div>
 
+<style>
+    body {
+        background-color: #05080f;
+        color: #f8fafc;
+    }
+
+    .minimal-auth-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .auth-card {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7) !important;
+    }
+
+    .auth-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* === ALTO CONTRASTE UNIFICADO PARA TODOS LOS INPUTS === */
+    .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-outlined {
+        background-color: #1e293b !important;
+        border-radius: 8px !important;
+    }
+
+    .mud-input-outlined-border {
+        border-color: #475569 !important;
+        border-width: 1.5px !important;
+    }
+
+    .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #94a3b8 !important;
+    }
+
+    .mud-input.mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+        border-color: #f59e0b !important;
+        border-width: 2px !important;
+    }
+
+    .mud-input > input.mud-input-root,
+    .mud-input > textarea.mud-input-root,
+    div.mud-input-slot.mud-input-root {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+
+        .mud-input > input.mud-input-root::placeholder,
+        .mud-input > textarea.mud-input-root::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+        }
+
+    .mud-input-label {
+        color: #e2e8f0 !important;
+        font-weight: 600 !important;
+        background-color: transparent !important;
+    }
+
+    .mud-input-control.mud-input-focused .mud-input-label {
+        color: #f59e0b !important;
+    }
+
+    .mud-input-adornment .mud-icon-root,
+    .mud-input-adornment button {
+        color: #cbd5e1 !important;
+    }
+</style>
+
 @code {
+    private MudTheme AuthTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#f59e0b",
+            Secondary = "#3b82f6",
+            Success = "#10b981",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Background = "#05080f",
+            Surface = "#0b0f19",
+            TextPrimary = "#ffffff",
+            TextSecondary = "#e2e8f0",
+            LinesDefault = "#475569",
+            LinesInputs = "#64748b",
+            ActionDefault = "#cbd5e1"
+        }
+    };
+
     private RegisterRequestDto registroModel = new()
     {
         IdRol = 2
@@ -96,6 +253,26 @@
 
     private string? errorMessage;
     private bool isLoading;
+
+    private bool mostrarPassword = false;
+    private InputType passwordInput = InputType.Password;
+    private string passwordIcon = Icons.Material.Rounded.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (mostrarPassword)
+        {
+            mostrarPassword = false;
+            passwordIcon = Icons.Material.Rounded.VisibilityOff;
+            passwordInput = InputType.Password;
+        }
+        else
+        {
+            mostrarPassword = true;
+            passwordIcon = Icons.Material.Rounded.Visibility;
+            passwordInput = InputType.Text;
+        }
+    }
 
     private async Task HandleRegister()
     {
@@ -117,7 +294,7 @@
         catch (Exception ex)
         {
             errorMessage = "No se pudo conectar con el servidor.";
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Error de Registro: {ex.Message}");
         }
         finally
         {

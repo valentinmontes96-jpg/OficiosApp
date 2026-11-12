@@ -1,72 +1,217 @@
-﻿@page "/login"
-@rendermode InteractiveServer
+﻿@page "/"
+@page "/login"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using OficiosApp.Shared.Dtos.Auth.Login.Request
 @using Microsoft.AspNetCore.Components.Authorization
 @using OficiosApp.Web.Services
+@using MudBlazor
 @inject IAuthService AuthService
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Iniciar Sesión — OficiosApp</PageTitle>
 
-<div class="auth-wrapper">
-    <div style="max-width: 440px; width: 100%;">
-        <div class="auth-card">
-            <div class="text-center">
-                <span class="auth-badge">OficiosApp Platform</span>
-                <h1 class="auth-title">Bienvenido</h1>
-                <p class="auth-subtitle">Ingresá tus credenciales para continuar</p>
+<MudThemeProvider Theme="AuthTheme" IsDarkMode="true" />
+
+<div class="minimal-auth-bg d-flex align-center justify-center px-4 py-8">
+    <MudPaper Class="pa-8 auth-card rounded-xl" Elevation="0" Outlined="true" Style="width: 100%; max-width: 440px;">
+
+        <!-- Encabezado -->
+        <MudStack AlignItems="AlignItems.Center" Spacing="1" Class="mb-6 text-center">
+            <div class="auth-icon-wrapper mb-2">
+                <MudIcon Icon="@Icons.Material.Rounded.Handyman" Size="Size.Medium" Style="color: #f59e0b;" />
             </div>
+            <MudText Typo="Typo.overline" Style="color: #f59e0b; letter-spacing: 2px; font-weight: 600;">
+                OficiosApp Platform
+            </MudText>
+            <MudText Typo="Typo.h4" Style="font-weight: 800; letter-spacing: -0.5px; color: #f8fafc;">
+                Bienvenido
+            </MudText>
+            <MudText Typo="Typo.body2" Style="color: #94a3b8;">
+                Ingresá tus credenciales para continuar
+            </MudText>
+        </MudStack>
 
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <div class="auth-alert-error" role="alert">
-                    <span>@errorMessage</span>
-                </div>
-            }
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Dense="true" Class="mb-6 rounded-lg">
+                @errorMessage
+            </MudAlert>
+        }
 
-            <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
-                <DataAnnotationsValidator />
+        <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
 
-                <div class="mb-3">
-                    <label class="auth-label">Correo Electrónico</label>
-                    <InputText @bind-Value="loginModel.Email" class="form-control auth-input" placeholder="ejemplo@correo.com" />
-                    <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small mt-1" />
-                </div>
+            <MudStack Spacing="4">
+                <MudTextField @bind-Value="loginModel.Email"
+                              For="@(() => loginModel.Email)"
+                              Label="Correo Electrónico"
+                              Placeholder="ejemplo@correo.com"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Rounded.AlternateEmail" />
 
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-1">
-                        <label class="auth-label mb-0">Contraseña</label>
-                    </div>
-                    <InputText @bind-Value="loginModel.Password" type="password" class="form-control auth-input" placeholder="••••••••••••" />
-                    <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1" />
-                </div>
+                <MudTextField @bind-Value="loginModel.Password"
+                              For="@(() => loginModel.Password)"
+                              Label="Contraseña"
+                              Placeholder="••••••••••••"
+                              InputType="@passwordInput"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@passwordIcon"
+                              OnAdornmentClick="TogglePasswordVisibility" />
 
-                <button type="submit" class="btn-auth-primary w-100 d-flex justify-content-center align-items-center" disabled="@isLoading">
+                <MudButton ButtonType="ButtonType.Submit"
+                           Variant="Variant.Filled"
+                           Color="Color.Warning"
+                           FullWidth="true"
+                           Disabled="@isLoading"
+                           Class="mt-2 py-2"
+                           Style="border-radius: 8px; font-weight: 700; text-transform: none; color: #05080f; font-size: 0.95rem;">
                     @if (isLoading)
                     {
-                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        <MudProgressCircular Class="ms-n1 me-2" Size="Size.Small" Indeterminate="true" Style="color: #05080f;" />
                         <span>Autenticando...</span>
                     }
                     else
                     {
                         <span>Acceder a la plataforma</span>
                     }
-                </button>
-            </EditForm>
+                </MudButton>
+            </MudStack>
+        </EditForm>
 
-            <div class="text-center mt-4 pt-2 border-top border-secondary border-opacity-25">
-                <span class="text-muted small">¿Todavía no formás parte?</span>
-                <a href="/registro" class="auth-link ms-1 small">Creá tu cuenta</a>
-            </div>
-        </div>
-    </div>
+        <!-- Pie de tarjeta -->
+        <MudStack Row="true" Justify="Justify.Center" AlignItems="AlignItems.Center" Spacing="1" Class="mt-6 pt-4" Style="border-top: 1px solid #1e293b;">
+            <MudText Typo="Typo.caption" Style="color: #94a3b8;">¿Todavía no formás parte?</MudText>
+            <MudLink Href="/registro" Typo="Typo.caption" Style="color: #f59e0b; font-weight: 600;">Creá tu cuenta</MudLink>
+        </MudStack>
+
+    </MudPaper>
 </div>
 
+<style>
+    body {
+        background-color: #05080f;
+        color: #f8fafc;
+    }
+
+    .minimal-auth-bg {
+        background-color: #05080f;
+        min-height: 100vh;
+    }
+
+    .auth-card {
+        background-color: #0b0f19 !important;
+        border-color: #1e293b !important;
+        box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.7) !important;
+    }
+
+    .auth-icon-wrapper {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b, #0f172a);
+        border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* === ALTO CONTRASTE UNIFICADO PARA TODOS LOS INPUTS === */
+    .mud-input-control > .mud-input-control-input-container > div.mud-input.mud-input-outlined {
+        background-color: #1e293b !important;
+        border-radius: 8px !important;
+    }
+
+    .mud-input-outlined-border {
+        border-color: #475569 !important;
+        border-width: 1.5px !important;
+    }
+
+    .mud-input-control:hover .mud-input-outlined-border {
+        border-color: #94a3b8 !important;
+    }
+
+    .mud-input.mud-input-outlined.mud-input-focused .mud-input-outlined-border {
+        border-color: #f59e0b !important;
+        border-width: 2px !important;
+    }
+
+    .mud-input > input.mud-input-root,
+    .mud-input > textarea.mud-input-root,
+    div.mud-input-slot.mud-input-root {
+        color: #ffffff !important;
+        font-weight: 500 !important;
+    }
+
+        .mud-input > input.mud-input-root::placeholder,
+        .mud-input > textarea.mud-input-root::placeholder {
+            color: #94a3b8 !important;
+            opacity: 1 !important;
+        }
+
+    .mud-input-label {
+        color: #e2e8f0 !important;
+        font-weight: 600 !important;
+        background-color: transparent !important;
+    }
+
+    .mud-input-control.mud-input-focused .mud-input-label {
+        color: #f59e0b !important;
+    }
+
+    .mud-input-adornment .mud-icon-root,
+    .mud-input-adornment button {
+        color: #cbd5e1 !important;
+    }
+</style>
+
 @code {
+    private MudTheme AuthTheme = new MudTheme()
+    {
+        PaletteDark = new PaletteDark()
+        {
+            Primary = "#f59e0b",
+            Secondary = "#3b82f6",
+            Success = "#10b981",
+            Warning = "#f59e0b",
+            Error = "#ef4444",
+            Background = "#05080f",
+            Surface = "#0b0f19",
+            TextPrimary = "#ffffff",
+            TextSecondary = "#e2e8f0",
+            LinesDefault = "#475569",
+            LinesInputs = "#64748b",
+            ActionDefault = "#cbd5e1"
+        }
+    };
+
     private LoginRequestDto loginModel = new();
     private string? errorMessage;
     private bool isLoading;
+
+    private bool mostrarPassword = false;
+    private InputType passwordInput = InputType.Password;
+    private string passwordIcon = Icons.Material.Rounded.VisibilityOff;
+
+    private void TogglePasswordVisibility()
+    {
+        if (mostrarPassword)
+        {
+            mostrarPassword = false;
+            passwordIcon = Icons.Material.Rounded.VisibilityOff;
+            passwordInput = InputType.Password;
+        }
+        else
+        {
+            mostrarPassword = true;
+            passwordIcon = Icons.Material.Rounded.Visibility;
+            passwordInput = InputType.Text;
+        }
+    }
 
     private async Task HandleLogin()
     {
@@ -76,16 +221,13 @@
         try
         {
             var result = await AuthService.LoginAsync(loginModel);
-            if (result != null && !string.IsNullOrEmpty(result.Token))
+            if (result != null && !string.IsNullOrWhiteSpace(result.Token))
             {
                 var customAuthStateProvider = (CustomAuthStateProvider)AuthStateProvider;
                 await customAuthStateProvider.UpdateAuthenticationState(result.Token);
 
-                // Consultamos el estado actualizado para obtener los claims del token
-                var authState = await customAuthStateProvider.GetAuthenticationStateAsync();
-                var idRol = authState.User.FindFirst("IdRol")?.Value;
+                var idRol = ObtenerRolDesdeToken(result.Token);
 
-                // Redirección directa según rol
                 if (idRol == "1")
                 {
                     Navigation.NavigateTo("/admin");
@@ -107,11 +249,38 @@
         catch (Exception ex)
         {
             errorMessage = "No se pudo establecer conexión con el servidor.";
-            Console.WriteLine(ex.Message);
+            Console.WriteLine($"Error de Login: {ex.Message}");
         }
         finally
         {
             isLoading = false;
+        }
+    }
+
+    private string? ObtenerRolDesdeToken(string jwt)
+    {
+        try
+        {
+            var payload = jwt.Split('.')[1];
+            switch (payload.Length % 4)
+            {
+                case 2: payload += "=="; break;
+                case 3: payload += "="; break;
+            }
+            var bytes = Convert.FromBase64String(payload);
+            using var doc = System.Text.Json.JsonDocument.Parse(bytes);
+
+            if (doc.RootElement.TryGetProperty("IdRol", out var prop))
+                return prop.GetString() ?? prop.GetInt32().ToString();
+
+            if (doc.RootElement.TryGetProperty("http://schemas.microsoft.com/ws/08/06/identity/claims/role", out var roleProp))
+                return roleProp.GetString();
+
+            return null;
+        }
+        catch
+        {
+            return null;
         }
     }
 }

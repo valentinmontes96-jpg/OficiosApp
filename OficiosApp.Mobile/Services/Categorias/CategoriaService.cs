@@ -1,5 +1,6 @@
-﻿using System.Net.Http.Json;
+﻿using OficiosApp.Shared.Dtos.Base;
 using OficiosApp.Shared.Dtos.Categoria;
+using System.Net.Http.Json;
 
 namespace OficiosApp.Mobile.Services;
 
@@ -16,8 +17,14 @@ public class CategoriaService : ICategoriaService
     {
         try
         {
-            var respuesta = await _httpClient.GetFromJsonAsync<List<CategoriaResponseDto>>("api/categorias");
-            return respuesta?.Where(c => c.Activa).ToList() ?? new List<CategoriaResponseDto>();
+            var respuesta = await _httpClient.GetFromJsonAsync<BaseResponse<List<CategoriaResponseDto>>>("api/categorias");
+
+            if (respuesta != null && respuesta.Success && respuesta.Data != null)
+            {
+                return respuesta.Data.Where(c => c.Activa).ToList();
+            }
+
+            return new List<CategoriaResponseDto>();
         }
         catch
         {

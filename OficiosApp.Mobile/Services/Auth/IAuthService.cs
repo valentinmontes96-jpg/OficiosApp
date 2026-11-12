@@ -6,7 +6,11 @@ namespace OficiosApp.Mobile.Services;
 public interface IAuthService
 {
     Task<bool> LoginAsync(LoginRequestDto loginDto);
-    Task<bool> RegisterAsync(RegisterRequestDto registerDto);
+    Task<(bool Exito, string Mensaje)> RegisterAsync(RegisterRequestDto registerDto);
     Task LogoutAsync();
     Task<bool> IsAuthenticatedAsync();
+    Task<int?> ObtenerIdRolAsync();
+    Task<int?> ObtenerIdUsuarioAsync();
+    Task<string?> ObtenerNombreUsuarioAsync();
+    Task<string> ObtenerRutaHomePorRolAsync();
 }
