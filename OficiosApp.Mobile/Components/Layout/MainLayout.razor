@@ -3,39 +3,78 @@
 @inject NavigationManager Nav
 @inject IAuthService AuthService
 
-<div class="flex flex-col h-full bg-gray-100">
+<div class="flex flex-col h-full bg-slate-50">
 
     <!-- Contenido dinámico de la pantalla -->
     <div class="flex-1 overflow-y-auto">
         @Body
     </div>
 
-    <!-- Barra inferior adaptada a Blazor -->
-    <div class="bg-white border-t border-gray-200 flex justify-around py-3 text-xs text-gray-500 pb-safe">
+    <!-- Barra inferior dinámica según el rol (Cliente vs Profesional) -->
+    <nav class="bg-white border-t border-gray-200 flex justify-around py-2.5 text-xs text-gray-500 pb-safe shadow-sm">
 
-        <div class="flex flex-col items-center cursor-pointer hover:text-blue-600" @onclick="IrAHome">
-            <span class="text-xl mb-1">🏠</span>
-            <span class="font-bold">Home</span>
-        </div>
+        <button type="button"
+                class="flex flex-col items-center cursor-pointer hover:text-blue-600 transition-colors"
+                @onclick="IrAHome">
+            <span class="text-lg mb-0.5">🏠</span>
+            <span class="font-bold">@(esProfesional ? "Panel" : "Inicio")</span>
+        </button>
 
-        <div class="flex flex-col items-center cursor-pointer hover:text-blue-600" @onclick='() => Nav.NavigateTo("/solicitudes")'>
-            <span class="text-xl mb-1">📅</span>
-            <span>Citas</span>
-        </div>
+        <button type="button"
+                class="flex flex-col items-center cursor-pointer hover:text-blue-600 transition-colors"
+                @onclick="IrASolicitudesOCitas">
+            <span class="text-lg mb-0.5">@(esProfesional ? "📋" : "📅")</span>
+            <span class="font-semibold">@(esProfesional ? "Solicitudes" : "Mis Citas")</span>
+        </button>
 
-        <div class="flex flex-col items-center cursor-pointer text-red-500 hover:text-red-700" @onclick="CerrarSesion">
-            <span class="text-xl mb-1">🚪</span>
-            <span>Salir</span>
-        </div>
+        @if (esProfesional)
+        {
+            <button type="button"
+                    class="flex flex-col items-center cursor-pointer hover:text-blue-600 transition-colors"
+                    @onclick='() => Nav.NavigateTo("/perfil-profesional")'>
+                <span class="text-lg mb-0.5">👤</span>
+                <span class="font-semibold">Mi Perfil</span>
+            </button>
+        }
+        else
+        {
+            <button type="button"
+                    class="flex flex-col items-center cursor-pointer hover:text-red-600 transition-colors"
+                    @onclick='() => Nav.NavigateTo("/urgencias")'>
+                <span class="text-lg mb-0.5">🚨</span>
+                <span class="font-semibold">Urgencias</span>
+            </button>
+        }
 
-    </div>
+        <button type="button"
+                class="flex flex-col items-center cursor-pointer text-red-500 hover:text-red-700 transition-colors"
+                @onclick="CerrarSesion">
+            <span class="text-lg mb-0.5">🚪</span>
+            <span class="font-semibold">Salir</span>
+        </button>
+
+    </nav>
 </div>
 
 @code {
+    private bool esProfesional = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var idRol = await AuthService.ObtenerIdRolAsync();
+        esProfesional = idRol == 3;
+    }
+
     private async Task IrAHome()
     {
         var ruta = await AuthService.ObtenerRutaHomePorRolAsync();
         Nav.NavigateTo(ruta);
+    }
+
+    private async Task IrASolicitudesOCitas()
+    {
+        var idRol = await AuthService.ObtenerIdRolAsync();
+        Nav.NavigateTo(idRol == 3 ? "/solicitudes-profesional" : "/citas");
     }
 
     private async Task CerrarSesion()

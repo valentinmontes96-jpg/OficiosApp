@@ -1,0 +1,342 @@
+@page "/solicitudes-profesional"
+@using OficiosApp.Shared.Dtos.Citas
+@using OficiosApp.Shared.Dtos.Citas.Response
+@using OficiosApp.Mobile.Services
+@inject ICitaMobileService CitaService
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+
+<div class="h-full flex flex-col bg-slate-50">
+    <!-- Header Solicitudes Profesional -->
+    <header class="bg-slate-900 text-white px-4 py-3.5 shadow-md z-10 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <button type="button"
+                    @onclick='() => Nav.NavigateTo("/home-profesional")'
+                    class="p-1.5 rounded-lg hover:bg-slate-800 active:bg-slate-700 transition-colors">
+                ←
+            </button>
+            <div>
+                <h1 class="text-base font-extrabold leading-tight">Solicitudes de Clientes</h1>
+                <p class="text-[11px] text-slate-300">Gestioná tus pedidos, agenda y trabajos</p>
+            </div>
+        </div>
+
+        <button type="button"
+                @onclick="CargarSolicitudesAsync"
+                class="px-3 py-1.5 bg-amber-500 text-slate-950 font-extrabold rounded-xl text-xs shadow-sm active:scale-95 transition-all">
+            ↻ Actualizar
+        </button>
+    </header>
+
+    <main class="p-4 flex-1 overflow-y-auto space-y-4">
+        <!-- Buscador rápido -->
+        <div>
+            <input type="text"
+                   @bind="filtroTexto"
+                   @bind:event="oninput"
+                   placeholder="Buscar por dirección, descripción o #solicitud..."
+                   class="w-full p-2.5 rounded-xl border border-gray-200 text-xs outline-none focus:border-slate-700 bg-white shadow-sm" />
+        </div>
+
+        <!-- Pestañas por estado -->
+        <div class="grid grid-cols-4 gap-1.5 bg-gray-200/80 p-1 rounded-xl text-center">
+            <button type="button"
+                    @onclick="() => estadoFiltro = 1"
+                    class="py-2 rounded-lg text-[11px] font-bold transition-all @(estadoFiltro == 1 ? "bg-white text-amber-700 shadow-sm" : "text-gray-600")">
+                Pendientes (@citas.Count(c => c.IdEstadoCita == 1))
+            </button>
+            <button type="button"
+                    @onclick="() => estadoFiltro = 2"
+                    class="py-2 rounded-lg text-[11px] font-bold transition-all @(estadoFiltro == 2 ? "bg-white text-blue-700 shadow-sm" : "text-gray-600")">
+                Agenda (@citas.Count(c => c.IdEstadoCita == 2))
+            </button>
+            <button type="button"
+                    @onclick="() => estadoFiltro = 4"
+                    class="py-2 rounded-lg text-[11px] font-bold transition-all @(estadoFiltro == 4 ? "bg-white text-emerald-700 shadow-sm" : "text-gray-600")">
+                Listas (@citas.Count(c => c.IdEstadoCita == 4))
+            </button>
+            <button type="button"
+                    @onclick="() => estadoFiltro = 3"
+                    class="py-2 rounded-lg text-[11px] font-bold transition-all @(estadoFiltro == 3 ? "bg-white text-red-700 shadow-sm" : "text-gray-600")">
+                Canceladas (@citas.Count(c => c.IdEstadoCita == 3))
+            </button>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="flex flex-col justify-center items-center py-14 bg-white rounded-2xl border border-gray-100">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-800 mb-3"></div>
+                <span class="text-gray-500 text-xs font-medium">Cargando solicitudes...</span>
+            </div>
+        }
+        else if (CitasFiltradas.Count == 0)
+        {
+            <div class="bg-white p-6 rounded-2xl text-center shadow-sm border border-gray-200">
+                <span class="text-3xl block mb-2">📭</span>
+                <p class="text-gray-800 text-sm font-bold mb-1">No hay solicitudes en esta sección</p>
+                <p class="text-gray-500 text-xs">Cuando un cliente te solicite un presupuesto o visita, aparecerá acá.</p>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-3 pb-6">
+                @foreach (var cita in CitasFiltradas)
+                {
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-extrabold text-slate-500">#@cita.IdCita</span>
+                                <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold @ObtenerClaseBadgeEstado(cita.IdEstadoCita)">
+                                    @ObtenerNombreEstado(cita.IdEstadoCita)
+                                </span>
+                            </div>
+                            <span class="text-xs text-gray-600 font-semibold">
+                                📅 @cita.FechaServicioPactada.ToString("dd/MM/yyyy HH:mm")
+                            </span>
+                        </div>
+
+                        <div>
+                            <h3 class="text-sm font-extrabold text-gray-900 leading-snug">@cita.DescripcionProblema</h3>
+                            <p class="text-xs text-gray-600 mt-1">📍 <strong>Dirección:</strong> @cita.DireccionServicio</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">
+                                Cliente ID #@cita.IdUsuarioCliente · Solicitada el @cita.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")
+                            </p>
+                        </div>
+
+                        @if (cita.IdEstadoCita == 1 || cita.IdEstadoCita == 2)
+                        {
+                            <div>
+                                <input type="text"
+                                       placeholder="Nota u observación para el cliente (opcional)..."
+                                       value="@ObtenerNotaCita(cita.IdCita)"
+                                       @oninput="(e) => GuardarNotaCita(cita.IdCita, e.Value?.ToString())"
+                                       class="w-full p-2 rounded-lg border border-gray-200 text-xs outline-none focus:border-slate-600 bg-slate-50" />
+                            </div>
+                        }
+
+                        <div class="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                            <button type="button"
+                                    @onclick="() => VerHistorial(cita)"
+                                    class="px-3 py-2 rounded-xl border border-gray-200 bg-slate-50 text-gray-700 text-xs font-bold hover:bg-gray-100">
+                                Historial
+                            </button>
+
+                            @if (cita.IdEstadoCita == 1)
+                            {
+                                <div class="flex items-center gap-2 flex-1 justify-end">
+                                    <button type="button"
+                                            disabled="@procesando"
+                                            @onclick="() => RechazarSolicitud(cita.IdCita)"
+                                            class="px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold rounded-xl text-xs transition-all disabled:opacity-50">
+                                        ✕ Rechazar
+                                    </button>
+                                    <button type="button"
+                                            disabled="@procesando"
+                                            @onclick="() => AceptarSolicitud(cita.IdCita)"
+                                            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50">
+                                        ✓ Confirmar Cita
+                                    </button>
+                                </div>
+                            }
+                            else if (cita.IdEstadoCita == 2)
+                            {
+                                <div class="flex items-center gap-2 flex-1 justify-end">
+                                    <button type="button"
+                                            disabled="@procesando"
+                                            @onclick="() => CancelarCitaConfirmada(cita.IdCita)"
+                                            class="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-bold rounded-xl text-xs transition-all disabled:opacity-50">
+                                        Cancelar
+                                    </button>
+                                    <button type="button"
+                                            disabled="@procesando"
+                                            @onclick="() => CompletarTrabajo(cita.IdCita)"
+                                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-all disabled:opacity-50">
+                                        ✓ Trabajo Finalizado
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </main>
+
+    <!-- Modal de Historial -->
+    @if (citaSeleccionada != null)
+    {
+        <div class="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-3">
+            <div class="bg-white w-full max-w-md rounded-2xl p-4 shadow-xl space-y-3 max-h-[80vh] overflow-y-auto">
+                <div class="flex items-center justify-between border-b border-gray-100 pb-2.5">
+                    <h3 class="text-sm font-extrabold text-gray-900">Historial de Solicitud #@citaSeleccionada.IdCita</h3>
+                    <button type="button"
+                            @onclick="CerrarModalHistorial"
+                            class="p-1.5 text-gray-400 hover:text-gray-700 font-bold text-sm">
+                        ✕
+                    </button>
+                </div>
+
+                @if (cargandoHistorial)
+                {
+                    <p class="text-xs text-gray-500 py-4 text-center">Cargando historial...</p>
+                }
+                else if (historial.Count == 0)
+                {
+                    <p class="text-xs text-gray-500 py-3">Sin registros de historial.</p>
+                }
+                else
+                {
+                    <div class="space-y-2.5">
+                        @foreach (var h in historial)
+                        {
+                            <div class="border-l-2 border-amber-500 pl-3 py-1 text-xs">
+                                <div class="flex justify-between font-bold text-gray-800">
+                                    <span>@h.NombreEstado</span>
+                                    <span class="text-[10px] text-gray-400">@h.FechaCambio.ToString("dd/MM/yyyy HH:mm")</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(h.Observaciones))
+                                {
+                                    <p class="text-gray-600 text-[11px] mt-0.5">@h.Observaciones</p>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+
+                <button type="button"
+                        @onclick="CerrarModalHistorial"
+                        class="w-full py-2.5 bg-slate-900 text-white rounded-xl text-xs font-bold">
+                    Cerrar
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<CitaResponseDto> citas = new();
+    private Dictionary<int, string> notasPorCita = new();
+    private string filtroTexto = string.Empty;
+    private int estadoFiltro = 1;
+    private bool cargando = true;
+    private bool procesando = false;
+
+    private CitaResponseDto? citaSeleccionada;
+    private List<HistorialEstadoCitaResponseDto> historial = new();
+    private bool cargandoHistorial = false;
+
+    private List<CitaResponseDto> CitasFiltradas
+    {
+        get
+        {
+            var query = citas.Where(c => c.IdEstadoCita == estadoFiltro);
+
+            if (!string.IsNullOrWhiteSpace(filtroTexto))
+            {
+                var f = filtroTexto.Trim();
+                query = query.Where(c =>
+                    c.IdCita.ToString().Contains(f) ||
+                    c.DescripcionProblema.Contains(f, StringComparison.OrdinalIgnoreCase) ||
+                    c.DireccionServicio.Contains(f, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var idRol = await AuthService.ObtenerIdRolAsync();
+        if (idRol == 2)
+        {
+            Nav.NavigateTo("/citas", replace: true);
+            return;
+        }
+
+        await CargarSolicitudesAsync();
+    }
+
+    private async Task CargarSolicitudesAsync()
+    {
+        cargando = true;
+        citas = await CitaService.ObtenerMisCitasProfesionalAsync();
+        cargando = false;
+    }
+
+    private string ObtenerNotaCita(int idCita) =>
+        notasPorCita.TryGetValue(idCita, out var nota) ? nota : string.Empty;
+
+    private void GuardarNotaCita(int idCita, string? valor)
+    {
+        notasPorCita[idCita] = valor ?? string.Empty;
+    }
+
+    private Task AceptarSolicitud(int idCita)
+    {
+        var nota = ObtenerNotaCita(idCita);
+        return CambiarEstadoAsync(idCita, 2, string.IsNullOrWhiteSpace(nota) ? "Cita confirmada por el profesional." : nota);
+    }
+
+    private Task RechazarSolicitud(int idCita)
+    {
+        var nota = ObtenerNotaCita(idCita);
+        return CambiarEstadoAsync(idCita, 3, string.IsNullOrWhiteSpace(nota) ? "Solicitud rechazada por el profesional." : nota);
+    }
+
+    private Task CancelarCitaConfirmada(int idCita)
+    {
+        var nota = ObtenerNotaCita(idCita);
+        return CambiarEstadoAsync(idCita, 3, string.IsNullOrWhiteSpace(nota) ? "Cita cancelada por el profesional." : nota);
+    }
+
+    private Task CompletarTrabajo(int idCita)
+    {
+        var nota = ObtenerNotaCita(idCita);
+        return CambiarEstadoAsync(idCita, 4, string.IsNullOrWhiteSpace(nota) ? "Trabajo finalizado con éxito." : nota);
+    }
+
+    private async Task CambiarEstadoAsync(int idCita, int nuevoEstadoId, string observaciones)
+    {
+        procesando = true;
+        var ok = await CitaService.CambiarEstadoCitaAsync(idCita, nuevoEstadoId, observaciones);
+        if (ok)
+        {
+            notasPorCita.Remove(idCita);
+            citas = await CitaService.ObtenerMisCitasProfesionalAsync();
+        }
+        procesando = false;
+    }
+
+    private async Task VerHistorial(CitaResponseDto cita)
+    {
+        citaSeleccionada = cita;
+        cargandoHistorial = true;
+        historial = await CitaService.ObtenerHistorialCitaAsync(cita.IdCita);
+        cargandoHistorial = false;
+    }
+
+    private void CerrarModalHistorial()
+    {
+        citaSeleccionada = null;
+        historial.Clear();
+    }
+
+    private static string ObtenerNombreEstado(int idEstado) => idEstado switch
+    {
+        1 => "Pendiente",
+        2 => "Confirmada",
+        3 => "Cancelada",
+        4 => "Completada",
+        _ => $"Estado #{idEstado}"
+    };
+
+    private static string ObtenerClaseBadgeEstado(int idEstado) => idEstado switch
+    {
+        1 => "bg-amber-100 text-amber-800",
+        2 => "bg-blue-100 text-blue-800",
+        3 => "bg-red-100 text-red-700",
+        4 => "bg-emerald-100 text-emerald-800",
+        _ => "bg-gray-100 text-gray-700"
+    };
+}
+

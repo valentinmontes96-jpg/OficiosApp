@@ -273,7 +273,7 @@
                                   AdornmentIcon="@Icons.Material.Rounded.Lock" />
 
                     <MudTextField @bind-Value="formTelefono"
-                                  Label="Teléfono *"
+                                  Label="Teléfono"
                                   Placeholder="+54 9 ..."
                                   Variant="Variant.Outlined"
                                   Margin="Margin.Dense"
@@ -589,11 +589,14 @@
     }
 
     /// <summary>
-    /// Interpreta el rol del UsuarioDto tanto si viene como texto ("Admin", "Profesional", "Cliente")
-    /// como si viene como número en string ("1", "2", "3").
+    /// Interpreta el rol del UsuarioDto tanto si viene por IdRol (1, 2, 3)
+    /// como por texto ("Admin", "Profesional", "Cliente").
     /// </summary>
     private int ResolverIdRol(UsuarioDto u)
     {
+        if (u.IdRol is >= 1 and <= 3)
+            return u.IdRol;
+
         if (string.IsNullOrWhiteSpace(u.Rol))
             return 0;
 
@@ -644,12 +647,12 @@
         emailSeleccionado = usuario.Email;
         formNombre = usuario.Nombre;
         formApellido = usuario.Apellido;
-        formTelefono = usuario.Telefono ?? string.Empty;
+        formTelefono = usuario.Telefono == "-" ? string.Empty : (usuario.Telefono ?? string.Empty);
 
         var rolDetectado = ResolverIdRol(usuario);
         formIdRol = rolDetectado != 0 ? rolDetectado : 2;
 
-        formActivo = true;
+        formActivo = usuario.Activo;
         mensajeError = null;
         mostrarModal = true;
     }
@@ -665,11 +668,6 @@
         if (string.IsNullOrWhiteSpace(formNombre) || string.IsNullOrWhiteSpace(formApellido))
         {
             mensajeError = "Nombre y apellido son obligatorios.";
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(formTelefono))
-        {
-            mensajeError = "El teléfono es obligatorio.";
             return;
         }
 
@@ -691,7 +689,7 @@
             if (ok)
             {
                 mostrarModal = false;
-                Snackbar.Add("Usuario actualizado correctamente.", Severity.Success);
+                Snackbar.Add("Usuario y rol actualizados correctamente.", Severity.Success);
                 usuarios = await UsuarioService.ObtenerTodosAsync();
             }
             else

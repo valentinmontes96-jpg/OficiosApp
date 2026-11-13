@@ -48,6 +48,8 @@ public class UsuarioService : IUsuarioService
             Apellido = u.Apellido,
             Email = u.Email,
             Telefono = u.Telefono,
+            IdRol = u.IdRol,
+            Rol = u.Rol?.Nombre ?? ObtenerNombreRolPorId(u.IdRol),
             Activo = u.Activo,
             FechaRegistro = u.FechaRegistro
         }).ToList();
@@ -73,6 +75,8 @@ public class UsuarioService : IUsuarioService
             Apellido = usuario.Apellido,
             Email = usuario.Email,
             Telefono = usuario.Telefono,
+            IdRol = usuario.IdRol,
+            Rol = usuario.Rol?.Nombre ?? ObtenerNombreRolPorId(usuario.IdRol),
             Activo = usuario.Activo,
             FechaRegistro = usuario.FechaRegistro
         };
@@ -113,4 +117,12 @@ public class UsuarioService : IUsuarioService
 
         return new BaseResponse<bool> { Success = true, Data = true };
     }
+
+    private static string ObtenerNombreRolPorId(int idRol) => idRol switch
+    {
+        1 => "Admin",
+        2 => "Cliente",
+        3 => "Profesional",
+        _ => string.Empty
+    };
 }

@@ -1,4 +1,6 @@
-﻿// Services/ITokenStorage.cs
+﻿using System.Text.Json;
+
+// Services/ITokenStorage.cs
 public interface ITokenStorage
 {
     Task SetTokenAsync(string token, int? idRol = null, int? idUsuario = null, string? nombreUsuario = null);
@@ -22,6 +24,9 @@ public class TokenStorage : ITokenStorage
     private int? _cachedIdUsuario;
     private string? _cachedNombreUsuario;
 
+    private static string RutaArchivoFallback =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OficiosApp.Mobile", "auth_session.json");
+
     public async Task SetTokenAsync(string token, int? idRol = null, int? idUsuario = null, string? nombreUsuario = null)
     {
         _cachedToken = token;
@@ -41,7 +46,26 @@ public class TokenStorage : ITokenStorage
         }
         catch
         {
-            // Fallback en memoria si SecureStorage no está disponible
+            // En Windows Machine (Unpackaged), SecureStorage lanza excepción por no tener Package Identity.
+            // Guardamos en archivo local seguro de la cuenta de usuario.
+            try
+            {
+                var dir = Path.GetDirectoryName(RutaArchivoFallback);
+                if (!string.IsNullOrEmpty(dir))
+                    Directory.CreateDirectory(dir);
+
+                var datos = new SesionLocalDto
+                {
+                    Token = _cachedToken,
+                    IdRol = _cachedIdRol,
+                    IdUsuario = _cachedIdUsuario,
+                    NombreUsuario = _cachedNombreUsuario
+                };
+                await File.WriteAllTextAsync(RutaArchivoFallback, JsonSerializer.Serialize(datos));
+            }
+            catch
+            {
+            }
         }
     }
 
@@ -53,12 +77,33 @@ public class TokenStorage : ITokenStorage
         try
         {
             _cachedToken = await SecureStorage.Default.GetAsync(TokenKey);
-            return _cachedToken;
+            if (!string.IsNullOrWhiteSpace(_cachedToken))
+                return _cachedToken;
         }
         catch
         {
-            return _cachedToken;
         }
+
+        try
+        {
+            if (File.Exists(RutaArchivoFallback))
+            {
+                var json = await File.ReadAllTextAsync(RutaArchivoFallback);
+                var datos = JsonSerializer.Deserialize<SesionLocalDto>(json);
+                if (datos != null && !string.IsNullOrWhiteSpace(datos.Token))
+                {
+                    _cachedToken = datos.Token;
+                    _cachedIdRol ??= datos.IdRol;
+                    _cachedIdUsuario ??= datos.IdUsuario;
+                    _cachedNombreUsuario ??= datos.NombreUsuario;
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return _cachedToken;
     }
 
     public int? GetCachedIdRol() => _cachedIdRol;
@@ -82,5 +127,22 @@ public class TokenStorage : ITokenStorage
         catch
         {
         }
+
+        try
+        {
+            if (File.Exists(RutaArchivoFallback))
+                File.Delete(RutaArchivoFallback);
+        }
+        catch
+        {
+        }
+    }
+
+    private sealed class SesionLocalDto
+    {
+        public string? Token { get; set; }
+        public int? IdRol { get; set; }
+        public int? IdUsuario { get; set; }
+        public string? NombreUsuario { get; set; }
     }
 }

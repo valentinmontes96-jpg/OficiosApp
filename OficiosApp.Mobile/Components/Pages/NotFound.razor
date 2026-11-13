@@ -1,5 +1,24 @@
 ﻿@page "/not-found"
 @layout MainLayout
+@using OficiosApp.Mobile.Services
+@inject IAuthService AuthService
+@inject NavigationManager Nav
 
-<h3>Not Found</h3>
-<p>Sorry, the content you are looking for does not exist.</p>
+<div class="h-full flex flex-col justify-center items-center p-6 text-center bg-slate-50">
+    <span class="text-4xl mb-3">🧭</span>
+    <h3 class="text-base font-extrabold text-gray-900 mb-1">Pantalla no encontrada</h3>
+    <p class="text-xs text-gray-500 mb-5">La sección que buscás no está disponible o fue movida.</p>
+    <button type="button"
+            @onclick="VolverAlInicio"
+            class="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold shadow-sm">
+        Volver al Inicio
+    </button>
+</div>
+
+@code {
+    private async Task VolverAlInicio()
+    {
+        var ruta = await AuthService.ObtenerRutaHomePorRolAsync();
+        Nav.NavigateTo(ruta, replace: true);
+    }
+}

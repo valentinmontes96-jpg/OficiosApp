@@ -9,6 +9,11 @@ public partial class App : Application
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
-		return new Window(new MainPage()) { Title = "OficiosApp.Mobile" };
+		return new Window(new MainPage())
+		{
+			Title = "OficiosApp.Mobile",
+			Width = 430,
+			Height = 840
+		};
 	}
 }

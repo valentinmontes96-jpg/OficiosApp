@@ -54,6 +54,25 @@ public class CitaMobileService : ICitaMobileService
         }
     }
 
+    public async Task<(bool Exito, string Mensaje)> CrearCitaAsync(CrearCitaDto dto)
+    {
+        try
+        {
+            var response = await _httpClient.PostAsJsonAsync("api/citas", dto);
+            if (response.IsSuccessStatusCode)
+            {
+                return (true, "Solicitud de cita enviada con éxito.");
+            }
+
+            var resultado = await response.Content.ReadFromJsonAsync<BaseResponse<CitaResponseDto>>();
+            return (false, resultado?.ErrorMessage ?? "No se pudo registrar la cita.");
+        }
+        catch (Exception ex)
+        {
+            return (false, "Error de conexión: " + ex.Message);
+        }
+    }
+
     public async Task<bool> CambiarEstadoCitaAsync(int idCita, int nuevoEstadoId, string? observaciones = null)
     {
         try
@@ -76,5 +95,21 @@ public class CitaMobileService : ICitaMobileService
             return false;
         }
     }
-}
 
+    public async Task<List<HistorialEstadoCitaResponseDto>> ObtenerHistorialCitaAsync(int idCita)
+    {
+        try
+        {
+            var respuesta = await _httpClient.GetFromJsonAsync<BaseResponse<List<HistorialEstadoCitaResponseDto>>>($"api/citas/{idCita}/historial");
+            if (respuesta != null && respuesta.Success && respuesta.Data != null)
+            {
+                return respuesta.Data;
+            }
+            return new List<HistorialEstadoCitaResponseDto>();
+        }
+        catch
+        {
+            return new List<HistorialEstadoCitaResponseDto>();
+        }
+    }
+}

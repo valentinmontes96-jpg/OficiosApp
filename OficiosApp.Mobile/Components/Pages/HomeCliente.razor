@@ -1,18 +1,20 @@
 @page "/home-cliente"
 @using OficiosApp.Shared.Dtos.Categoria
+@using OficiosApp.Shared.Dtos.Profesionales
 @using OficiosApp.Mobile.Services
 @inject ICategoriaService CategoriaService
+@inject IProfesionalMobileService ProfesionalService
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 
-<div class="h-full flex flex-col bg-gray-100">
+<div class="h-full flex flex-col bg-slate-50">
     <!-- Header superior Cliente -->
-    <header class="bg-blue-600 text-white px-4 py-3 shadow-md z-10 flex items-center justify-between">
+    <header class="bg-blue-600 text-white px-4 py-3.5 shadow-md z-10 flex items-center justify-between">
         <div>
             <div class="flex items-center space-x-2">
                 <span class="text-xl">🛠️</span>
-                <h1 class="text-lg font-bold tracking-tight">OficiosApp</h1>
-                <span class="text-[10px] uppercase tracking-wider bg-blue-500/80 px-2 py-0.5 rounded-full font-semibold">Cliente</span>
+                <h1 class="text-lg font-extrabold tracking-tight">OficiosApp</h1>
+                <span class="text-[10px] uppercase tracking-wider bg-blue-500/80 px-2 py-0.5 rounded-full font-bold">Cliente</span>
             </div>
             @if (!string.IsNullOrWhiteSpace(nombreUsuario))
             {
@@ -31,98 +33,119 @@
     </header>
 
     <!-- Contenido desplazable -->
-    <main class="p-4 flex-1 overflow-y-auto">
+    <main class="p-4 flex-1 overflow-y-auto space-y-5">
         <!-- Barra de búsqueda rápida -->
-        <div class="mb-4">
+        <div class="relative">
+            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-gray-400 pointer-events-none">🔍</span>
             <input type="text"
                    @bind="terminoBusqueda"
                    @bind:event="oninput"
-                   placeholder="Buscar oficio o servicio..."
-                   class="w-full p-3 rounded-xl border border-gray-300 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white text-gray-800 shadow-sm text-sm" />
+                   placeholder="Buscar oficio, rubro o servicio..."
+                   class="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white text-gray-800 shadow-sm text-sm" />
         </div>
 
-        <!-- Tarjetas de Acciones Principales (Urgencias y Citas) -->
-        <div class="grid grid-cols-2 gap-3 mb-6">
-            <!-- Botón Citas Programadas -->
+        <!-- Tarjetas de Acciones Principales (Citas y Urgencias) -->
+        <div class="grid grid-cols-2 gap-3">
             <button type="button"
                     @onclick="IrACitas"
-                    class="bg-indigo-600 text-white p-3 rounded-xl shadow-sm hover:bg-indigo-700 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[90px]">
-                <div class="text-2xl mb-1">📅</div>
+                    class="bg-indigo-600 text-white p-3.5 rounded-2xl shadow-sm hover:bg-indigo-700 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[96px]">
+                <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-xl mb-2">📅</div>
                 <div>
                     <span class="block text-sm font-bold leading-tight">Mis Citas</span>
-                    <span class="text-[11px] opacity-80">Ver agenda y turnos</span>
+                    <span class="text-[11px] text-indigo-100">Ver agenda y turnos</span>
                 </div>
             </button>
 
-            <!-- Botón Urgencias 24/7 -->
             <button type="button"
                     @onclick="IrAUrgencias"
-                    class="bg-red-600 text-white p-3 rounded-xl shadow-sm hover:bg-red-700 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[90px]">
-                <div class="text-2xl mb-1">🚨</div>
+                    class="bg-red-600 text-white p-3.5 rounded-2xl shadow-sm hover:bg-red-700 active:scale-95 transition-all text-left flex flex-col justify-between min-h-[96px]">
+                <div class="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center text-xl mb-2">🚨</div>
                 <div>
                     <span class="block text-sm font-extrabold leading-tight">Urgencia 24/7</span>
-                    <span class="text-[11px] opacity-80">Guardias activas</span>
+                    <span class="text-[11px] text-red-100">Guardias activas hoy</span>
                 </div>
             </button>
         </div>
 
         <!-- Título de sección de categorías -->
-        <div class="flex items-center justify-between mb-3">
-            <h2 class="font-bold text-gray-700 text-base">Categorías</h2>
-            @if (!cargando && categorias.Count > 0)
-            {
-                <span class="text-xs text-gray-500">@CategoriasFiltradas.Count disponibles</span>
-            }
-        </div>
-
-        <!-- Estado de carga -->
-        @if (cargando)
-        {
-            <div class="flex flex-col justify-center items-center py-16">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
-                <span class="text-gray-500 text-sm font-medium">Cargando categorías...</span>
-            </div>
-        }
-        else if (CategoriasFiltradas.Count == 0)
-        {
-            <div class="bg-white p-6 rounded-2xl text-center shadow-sm border border-gray-200 my-4">
-                <span class="text-3xl block mb-2">🔍</span>
-                <p class="text-gray-600 text-sm font-medium">No se encontraron categorías disponibles.</p>
+        <div>
+            <div class="flex items-center justify-between mb-3">
+                <div>
+                    <h2 class="font-extrabold text-gray-800 text-base">Categorías de Oficios</h2>
+                    <p class="text-xs text-gray-500">Elegí un rubro para ver profesionales disponibles</p>
+                </div>
                 <button type="button"
-                        @onclick="CargarCategorias"
-                        class="mt-3 text-blue-600 font-semibold text-xs hover:underline">
-                    Reintentar conexión
+                        @onclick='() => Nav.NavigateTo("/explorar")'
+                        class="text-xs font-bold text-blue-600 hover:underline shrink-0">
+                    Ver todos →
                 </button>
             </div>
-        }
-        else
-        {
-            <!-- Grilla de categorías -->
-            <div class="grid grid-cols-2 gap-3 pb-8">
-                @foreach (var cat in CategoriasFiltradas)
-                {
-                    <div @onclick="() => VerResultadosCategoria(cat.IdCategoria)"
-                         class="bg-white p-4 rounded-xl shadow-sm text-center cursor-pointer hover:bg-blue-50 border border-gray-100 hover:border-blue-200 transition-all active:scale-95 flex flex-col items-center justify-center min-h-[115px]">
 
-                        @if (!string.IsNullOrWhiteSpace(cat.IconoUrl))
-                        {
-                            <img src="@cat.IconoUrl" alt="@cat.Nombre" class="w-10 h-10 object-contain mb-2" />
-                        }
-                        else
-                        {
-                            <span class="text-3xl mb-1 select-none">@ObtenerIconoPorDefecto(cat.Nombre)</span>
-                        }
+            <!-- Estado de carga -->
+            @if (cargando)
+            {
+                <div class="flex flex-col justify-center items-center py-14 bg-white rounded-2xl border border-gray-100 shadow-sm">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                    <span class="text-gray-500 text-sm font-medium">Cargando categorías...</span>
+                </div>
+            }
+            else if (CategoriasFiltradas.Count == 0)
+            {
+                <div class="bg-white p-6 rounded-2xl text-center shadow-sm border border-gray-200 my-2">
+                    <span class="text-3xl block mb-2">🔍</span>
+                    <p class="text-gray-600 text-sm font-medium">No se encontraron categorías con ese criterio.</p>
+                    <button type="button"
+                            @onclick="RestablecerYRecargar"
+                            class="mt-3 text-blue-600 font-semibold text-xs hover:underline">
+                        Mostrar todas las categorías
+                    </button>
+                </div>
+            }
+            else
+            {
+                <!-- Lista/Grilla de categorías rediseñada para Mobile -->
+                <div class="grid grid-cols-2 gap-3 pb-6">
+                    @foreach (var cat in CategoriasFiltradas)
+                    {
+                        var cantidadPros = ContarProfesionalesEnCategoria(cat.IdCategoria);
 
-                        <span class="font-semibold text-gray-800 text-sm leading-snug">@cat.Nombre</span>
-                    </div>
-                }
-            </div>
-        }
+                        <div @onclick="() => VerResultadosCategoria(cat.IdCategoria)"
+                             class="bg-white p-3.5 rounded-2xl shadow-sm cursor-pointer hover:shadow-md border border-gray-200/80 hover:border-blue-300 transition-all active:scale-95 flex flex-col justify-between min-h-[142px]">
+
+                            <div class="flex items-start justify-between mb-2">
+                                <div class="w-11 h-11 rounded-xl flex items-center justify-center text-2xl shrink-0 @ObtenerColorFondoCategoria(cat.Nombre)">
+                                    @if (EsUrlImagenValida(cat.IconoUrl))
+                                    {
+                                        <img src="@cat.IconoUrl" alt="@cat.Nombre" class="w-6 h-6 object-contain" />
+                                    }
+                                    else
+                                    {
+                                        <span class="select-none leading-none">@ResolverIconoCategoria(cat)</span>
+                                    }
+                                </div>
+
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full @(cantidadPros > 0 ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-500")">
+                                    @(cantidadPros == 1 ? "1 pro" : $"{cantidadPros} pros")
+                                </span>
+                            </div>
+
+                            <div>
+                                <h3 class="font-bold text-gray-900 text-sm leading-snug mb-0.5">@cat.Nombre</h3>
+                                <p class="text-[11px] text-gray-500 leading-tight line-clamp-2">
+                                    @(string.IsNullOrWhiteSpace(cat.Descripcion) ? "Profesionales verificados en este rubro" : cat.Descripcion)
+                                </p>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
     </main>
 </div>
 
 @code {
     private List<CategoriaResponseDto> categorias = new();
+    private List<ProfesionalResponseDto> profesionales = new();
     private string terminoBusqueda = string.Empty;
     private string? nombreUsuario;
     private bool cargando = true;
@@ -130,7 +153,10 @@
     private List<CategoriaResponseDto> CategoriasFiltradas =>
         string.IsNullOrWhiteSpace(terminoBusqueda)
             ? categorias
-            : categorias.Where(c => c.Nombre.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase)).ToList();
+            : categorias.Where(c =>
+                c.Nombre.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase) ||
+                (!string.IsNullOrWhiteSpace(c.Descripcion) && c.Descripcion.Contains(terminoBusqueda, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,15 +168,28 @@
         }
 
         nombreUsuario = await AuthService.ObtenerNombreUsuarioAsync();
-        await CargarCategorias();
+        await CargarDatosAsync();
     }
 
-    private async Task CargarCategorias()
+    private async Task CargarDatosAsync()
     {
         cargando = true;
-        categorias = await CategoriaService.ObtenerCategoriasAsync();
+        var tareaCats = CategoriaService.ObtenerCategoriasAsync();
+        var tareaPros = ProfesionalService.ObtenerTodosAsync();
+
+        categorias = await tareaCats;
+        profesionales = await tareaPros;
         cargando = false;
     }
+
+    private async Task RestablecerYRecargar()
+    {
+        terminoBusqueda = string.Empty;
+        await CargarDatosAsync();
+    }
+
+    private int ContarProfesionalesEnCategoria(int idCategoria) =>
+        profesionales.Count(p => p.IdsCategorias != null && p.IdsCategorias.Contains(idCategoria));
 
     private void VerResultadosCategoria(int idCategoria)
     {
@@ -159,7 +198,7 @@
 
     private void IrACitas()
     {
-        Nav.NavigateTo("/solicitudes");
+        Nav.NavigateTo("/citas");
     }
 
     private void IrAUrgencias()
@@ -173,17 +212,66 @@
         Nav.NavigateTo("/", replace: true);
     }
 
-    private string ObtenerIconoPorDefecto(string nombre) => nombre.ToLower() switch
+    private static bool EsUrlImagenValida(string? iconoUrl)
+    {
+        if (string.IsNullOrWhiteSpace(iconoUrl))
+            return false;
+
+        var url = iconoUrl.Trim();
+        return (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ||
+                url.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase))
+               && (url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                   url.EndsWith(".svg", StringComparison.OrdinalIgnoreCase) ||
+                   url.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                   url.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                   url.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ||
+                   url.StartsWith("data:image/", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private string ResolverIconoCategoria(CategoriaResponseDto cat)
+    {
+        if (!string.IsNullOrWhiteSpace(cat.IconoUrl))
+        {
+            var limpio = cat.IconoUrl.Trim();
+            // Si en la base se guardó directamente un emoji corto, usarlo
+            if (limpio.Length <= 4 && !limpio.All(char.IsLetterOrDigit))
+            {
+                return limpio;
+            }
+        }
+
+        return ObtenerIconoPorDefecto(cat.Nombre);
+    }
+
+    private static string ObtenerIconoPorDefecto(string nombre) => nombre.ToLower() switch
     {
         var n when n.Contains("plomer") => "🚰",
         var n when n.Contains("electr") => "⚡",
         var n when n.Contains("gas") => "🔥",
-        var n when n.Contains("clima") || n.Contains("aire") => "❄️",
-        var n when n.Contains("carpint") => "🪚",
-        var n when n.Contains("albañil") => "🧱",
-        var n when n.Contains("pintur") => "🎨",
+        var n when n.Contains("clima") || n.Contains("aire") || n.Contains("refrig") => "❄️",
+        var n when n.Contains("carpint") || n.Contains("mader") => "🪚",
+        var n when n.Contains("albañil") || n.Contains("construc") => "🧱",
+        var n when n.Contains("pintur") || n.Contains("pintor") => "🎨",
         var n when n.Contains("cerraj") => "🔑",
+        var n when n.Contains("jardin") || n.Contains("poda") => "🌿",
+        var n when n.Contains("limpiez") => "🧹",
+        var n when n.Contains("flete") || n.Contains("mudanz") => "🚚",
+        var n when n.Contains("herrer") || n.Contains("soldad") => "⚒️",
+        var n when n.Contains("tech") || n.Contains("zinguer") => "🏠",
         _ => "🛠️"
     };
-}
 
+    private static string ObtenerColorFondoCategoria(string nombre) => nombre.ToLower() switch
+    {
+        var n when n.Contains("plomer") => "bg-sky-100 text-sky-700",
+        var n when n.Contains("electr") => "bg-amber-100 text-amber-700",
+        var n when n.Contains("gas") => "bg-orange-100 text-orange-700",
+        var n when n.Contains("clima") || n.Contains("aire") => "bg-cyan-100 text-cyan-700",
+        var n when n.Contains("carpint") => "bg-yellow-100 text-yellow-800",
+        var n when n.Contains("albañil") => "bg-stone-100 text-stone-700",
+        var n when n.Contains("pintur") => "bg-purple-100 text-purple-700",
+        var n when n.Contains("cerraj") => "bg-indigo-100 text-indigo-700",
+        _ => "bg-blue-100 text-blue-700"
+    };
+}

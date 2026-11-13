@@ -1,0 +1,230 @@
+@page "/resultados/{IdCategoria:int}"
+@page "/explorar"
+@using OficiosApp.Shared.Dtos.Categoria
+@using OficiosApp.Shared.Dtos.Profesionales
+@using OficiosApp.Shared.Dtos.Zonas
+@using OficiosApp.Mobile.Services
+@inject IProfesionalMobileService ProfesionalService
+@inject ICategoriaService CategoriaService
+@inject NavigationManager Nav
+
+<div class="h-full flex flex-col bg-slate-50">
+    <!-- Header -->
+    <header class="bg-blue-600 text-white px-4 py-3.5 shadow-md z-10 flex items-center gap-3">
+        <button type="button"
+                @onclick='() => Nav.NavigateTo("/home-cliente")'
+                class="p-1.5 rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors">
+            ←
+        </button>
+        <div class="min-w-0 flex-1">
+            <h1 class="text-base font-extrabold truncate">
+                @(categoriaActual != null ? categoriaActual.Nombre : "Explorar Profesionales")
+            </h1>
+            <p class="text-[11px] text-blue-100 truncate">
+                @(categoriaActual?.Descripcion ?? "Todos los rubros y oficios disponibles")
+            </p>
+        </div>
+    </header>
+
+    <main class="p-4 flex-1 overflow-y-auto space-y-4">
+        <!-- Buscador y filtro de urgencias -->
+        <div class="bg-white p-3 rounded-2xl shadow-sm border border-gray-200 space-y-2.5">
+            <input type="text"
+                   @bind="textoBusqueda"
+                   @bind:event="oninput"
+                   placeholder="Buscar por nombre o especialidad..."
+                   class="w-full p-2.5 rounded-xl border border-gray-200 text-xs outline-none focus:border-blue-500 bg-slate-50" />
+
+            <div class="flex items-center justify-between pt-1">
+                <label class="flex items-center gap-2 text-xs font-semibold text-gray-700 cursor-pointer">
+                    <input type="checkbox" @bind="soloUrgencias" class="rounded text-blue-600 focus:ring-blue-500" />
+                    <span>Solo disponibles para Urgencia 24/7 🚨</span>
+                </label>
+
+                @if (IdCategoria > 0)
+                {
+                    <button type="button"
+                            @onclick='() => Nav.NavigateTo("/explorar")'
+                            class="text-[11px] text-blue-600 font-bold hover:underline">
+                        Ver todos los rubros
+                    </button>
+                }
+            </div>
+        </div>
+
+        @if (cargando)
+        {
+            <div class="flex flex-col justify-center items-center py-14 bg-white rounded-2xl border border-gray-100">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-3"></div>
+                <span class="text-gray-500 text-xs font-medium">Buscando profesionales...</span>
+            </div>
+        }
+        else if (ProfesionalesFiltrados.Count == 0)
+        {
+            <div class="bg-white p-6 rounded-2xl text-center shadow-sm border border-gray-200">
+                <span class="text-3xl block mb-2">👷</span>
+                <p class="text-gray-700 text-sm font-bold mb-1">No hay profesionales disponibles</p>
+                <p class="text-gray-500 text-xs mb-4">Probá quitando los filtros o explorando todas las categorías.</p>
+                <button type="button"
+                        @onclick="LimpiarFiltros"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold">
+                    Ver todos los profesionales
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="space-y-3 pb-6">
+                @foreach (var pro in ProfesionalesFiltrados)
+                {
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-gray-200 space-y-3">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-11 h-11 rounded-full bg-blue-600 text-white font-extrabold text-sm flex items-center justify-center shrink-0">
+                                    @(pro.Nombre?.FirstOrDefault())@(pro.Apellido?.FirstOrDefault())
+                                </div>
+                                <div class="min-w-0">
+                                    <h3 class="font-bold text-gray-900 text-sm truncate">@pro.Nombre @pro.Apellido</h3>
+                                    @if (pro.DisponibleUrgencia)
+                                    {
+                                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full mt-0.5">
+                                            🚨 Guardia 24/7 Activa
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-[11px] text-gray-500 block">Atención con turno programado</span>
+                                    }
+                                </div>
+                            </div>
+
+                            <div class="text-right shrink-0">
+                                <span class="text-[10px] text-gray-400 uppercase font-semibold block">Tarifa Base</span>
+                                <span class="text-sm font-extrabold text-gray-900">
+                                    @(pro.TarifaBase.HasValue ? $"${pro.TarifaBase.Value:N0}" : "A convenir")
+                                </span>
+                            </div>
+                        </div>
+
+                        <p class="text-xs text-gray-600 leading-relaxed line-clamp-2">
+                            @(string.IsNullOrWhiteSpace(pro.Biografia)
+                                ? "Profesional verificado en OficiosApp disponible para presupuestos y visitas técnicas."
+                                : pro.Biografia)
+                        </p>
+
+                        <!-- Etiquetas de categorías y zonas -->
+                        @if (pro.IdsCategorias.Any() || pro.IdsZonas.Any())
+                        {
+                            <div class="flex flex-wrap gap-1.5">
+                                @foreach (var idCat in pro.IdsCategorias.Take(3))
+                                {
+                                    var nomCat = ObtenerNombreCategoria(idCat);
+                                    if (!string.IsNullOrEmpty(nomCat))
+                                    {
+                                        <span class="text-[10px] font-semibold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md">
+                                            🛠️ @nomCat
+                                        </span>
+                                    }
+                                }
+                                @foreach (var idZona in pro.IdsZonas.Take(2))
+                                {
+                                    var nomZona = ObtenerNombreZona(idZona);
+                                    if (!string.IsNullOrEmpty(nomZona))
+                                    {
+                                        <span class="text-[10px] font-semibold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                                            📍 @nomZona
+                                        </span>
+                                    }
+                                }
+                            </div>
+                        }
+
+                        <div class="pt-2 border-t border-gray-100 flex items-center justify-end gap-2">
+                            <button type="button"
+                                    @onclick='() => Nav.NavigateTo($"/profesional/{pro.IdUsuario}")'
+                                    class="w-full py-2.5 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white font-bold rounded-xl text-xs transition-all">
+                                Ver Perfil y Solicitar Cita
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </main>
+</div>
+
+@code {
+    [Parameter] public int IdCategoria { get; set; }
+
+    private List<ProfesionalResponseDto> todosProfesionales = new();
+    private List<CategoriaResponseDto> categorias = new();
+    private List<ZonaResponseDto> zonas = new();
+    private CategoriaResponseDto? categoriaActual;
+
+    private string textoBusqueda = string.Empty;
+    private bool soloUrgencias = false;
+    private bool cargando = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        cargando = true;
+        var tareaPros = ProfesionalService.ObtenerTodosAsync();
+        var tareaCats = CategoriaService.ObtenerCategoriasAsync();
+        var tareaZonas = ProfesionalService.ObtenerZonasAsync();
+
+        todosProfesionales = await tareaPros;
+        categorias = await tareaCats;
+        zonas = await tareaZonas;
+
+        categoriaActual = IdCategoria > 0
+            ? categorias.FirstOrDefault(c => c.IdCategoria == IdCategoria)
+            : null;
+
+        cargando = false;
+    }
+
+    private List<ProfesionalResponseDto> ProfesionalesFiltrados
+    {
+        get
+        {
+            var query = todosProfesionales.AsEnumerable();
+
+            if (IdCategoria > 0)
+            {
+                query = query.Where(p => p.IdsCategorias != null && p.IdsCategorias.Contains(IdCategoria));
+            }
+
+            if (soloUrgencias)
+            {
+                query = query.Where(p => p.DisponibleUrgencia);
+            }
+
+            if (!string.IsNullOrWhiteSpace(textoBusqueda))
+            {
+                var filtro = textoBusqueda.Trim();
+                query = query.Where(p =>
+                    $"{p.Nombre} {p.Apellido}".Contains(filtro, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(p.Biografia) && p.Biografia.Contains(filtro, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            return query.ToList();
+        }
+    }
+
+    private void LimpiarFiltros()
+    {
+        textoBusqueda = string.Empty;
+        soloUrgencias = false;
+        if (IdCategoria > 0)
+        {
+            Nav.NavigateTo("/explorar");
+        }
+    }
+
+    private string? ObtenerNombreCategoria(int idCat) =>
+        categorias.FirstOrDefault(c => c.IdCategoria == idCat)?.Nombre;
+
+    private string? ObtenerNombreZona(int idZona) =>
+        zonas.FirstOrDefault(z => z.IdZona == idZona)?.Nombre;
+}
+

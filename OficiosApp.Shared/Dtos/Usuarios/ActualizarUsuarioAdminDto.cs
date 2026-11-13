@@ -12,7 +12,6 @@ public class ActualizarUsuarioAdminDto
     [MaxLength(100)]
     public string Apellido { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El teléfono es obligatorio")]
     [MaxLength(25)]
     public string Telefono { get; set; } = string.Empty;
 

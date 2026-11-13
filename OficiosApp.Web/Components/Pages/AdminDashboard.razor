@@ -332,9 +332,9 @@
             var zonas = await tareaZonas;
 
             totalUsuarios = usuarios.Count;
-            totalAdmins = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Admin", StringComparison.OrdinalIgnoreCase));
-            totalClientes = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Cliente", StringComparison.OrdinalIgnoreCase));
-            totalProfesionales = usuarios.Count(u => u.Rol != null && u.Rol.Contains("Profesional", StringComparison.OrdinalIgnoreCase));
+            totalAdmins = usuarios.Count(u => u.IdRol == 1 || (u.Rol != null && u.Rol.Contains("Admin", StringComparison.OrdinalIgnoreCase)));
+            totalClientes = usuarios.Count(u => u.IdRol == 2 || (u.Rol != null && u.Rol.Contains("Cliente", StringComparison.OrdinalIgnoreCase)));
+            totalProfesionales = usuarios.Count(u => u.IdRol == 3 || (u.Rol != null && u.Rol.Contains("Profesional", StringComparison.OrdinalIgnoreCase)));
 
             totalCategorias = categorias.Count;
             categoriasActivas = categorias.Count(c => c.Activa);
